@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { wildcardToRegex } from '@/lib/wildcardToRegex'
 import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -30,14 +31,6 @@ type SearchParams = Promise<{
   regex?: string
 }>
 
-// Converts wildcard pattern (* ?) into a PostgreSQL regex string.
-// Other regex metacharacters are escaped so they are treated as literals.
-function wildcardToRegex(pattern: string): string {
-  return pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape regex special chars
-    .replace(/\*/g, '.*')                   // * → any sequence
-    .replace(/\?/g, '.')                    // ? → any single char
-}
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
   const { title, artist, year, regex } = await searchParams

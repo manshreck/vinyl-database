@@ -21,6 +21,7 @@ type Format = { formatId: number; name: string }
 
 type Pressing = {
   pressingId: number
+  releaseId: number
   formatId: number
   pressingYear: number | null
   country: string | null
@@ -70,13 +71,21 @@ export default function EditPressingForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
 
-      {/* Release (read-only) */}
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
-        <p className="font-medium text-zinc-900 dark:text-zinc-50">
-          {pressing.release.title}
-          <span className="ml-2 text-sm text-zinc-400">({pressing.release.originalReleaseYear})</span>
-        </p>
-        <p className="text-sm text-zinc-500">{artists}</p>
+      {/* Release (read-only, with edit link) */}
+      <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
+        <div>
+          <p className="font-medium text-zinc-900 dark:text-zinc-50">
+            {pressing.release.title}
+            <span className="ml-2 text-sm text-zinc-400">({pressing.release.originalReleaseYear})</span>
+          </p>
+          <p className="text-sm text-zinc-500">{artists}</p>
+        </div>
+        <a
+          href={`/releases/${pressing.releaseId}/edit?returnTo=/pressings/${pressing.pressingId}/edit`}
+          className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 whitespace-nowrap ml-4"
+        >
+          Edit release
+        </a>
       </div>
 
       {/* Pressing fields */}

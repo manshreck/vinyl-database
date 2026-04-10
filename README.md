@@ -69,6 +69,38 @@ Generate the Prisma client:
 npx prisma generate
 ```
 
+## Running Tests
+
+### Install test dependencies
+
+The test suite uses Jest and React Testing Library. These are development dependencies and only need to be installed once (they are included automatically if you ran `npm install` from the Project Setup step above, but can be added explicitly if needed):
+
+```bash
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom @types/jest
+```
+
+### Run the tests
+
+Run the full suite once:
+
+```bash
+npm test
+```
+
+Run in watch mode (re-runs affected tests on file save):
+
+```bash
+npm run test:watch
+```
+
+Run with a coverage report:
+
+```bash
+npm run test:coverage
+```
+
+The suite covers utility functions, server actions, API route handlers, and interactive UI components. No database connection is required — all Prisma calls are mocked.
+
 ## Running the App
 
 ```bash
