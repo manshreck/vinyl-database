@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { artistSortKey } from '@/lib/artistSort'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import FilterPanel from './FilterPanel'
@@ -50,12 +51,6 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
     prisma.format.findMany({ orderBy: { name: 'asc' } }),
     prisma.genre.findMany({ orderBy: { name: 'asc' } }),
   ])
-
-  // Sort by primary artist's sortName, stripping leading articles
-  const ARTICLES = /^(the|a|an)\s+/i
-  function artistSortKey(sortName: string): string {
-    return sortName.replace(ARTICLES, '').toLowerCase()
-  }
 
   pressings.sort((a, b) => {
     const aSortName = a.release.artists[0]?.artist.sortName ?? ''
@@ -126,17 +121,20 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {pressings.map((pressing) => {
-                  const artists = pressing.release.artists
-                    .map((ra) => ra.artist.name)
-                    .join(', ')
-
                   return (
                     <tr
                       key={pressing.pressingId}
                       className="bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                     >
                       <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
-                        {artists}
+                        {pressing.release.artists.map((ra, i) => (
+                          <span key={ra.artist.artistId}>
+                            {i > 0 && ', '}
+                            <Link href={`/artists/${ra.artist.artistId}`} className="hover:underline">
+                              {ra.artist.name}
+                            </Link>
+                          </span>
+                        ))}
                       </td>
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
                         <Link
