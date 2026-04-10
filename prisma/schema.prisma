@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Artist {
+  artistId  Int             @id @default(autoincrement()) @map("artist_id")
+  name      String          @unique(map: "uq_artist_name") @db.VarChar(255)
+  sortName  String          @map("sort_name") @db.VarChar(255)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  releases  ReleaseArtist[]
+
+  @@index([sortName], map: "idx_artists_sort_name")
+  @@map("artists")
+}
+
+model Genre {
+  genreId  Int            @id @default(autoincrement()) @map("genre_id")
+  name     String         @unique(map: "uq_genre_name") @db.VarChar(100)
+  releases ReleaseGenre[]
+
+  @@map("genres")
+}
+
+model Format {
+  formatId    Int        @id @default(autoincrement()) @map("format_id")
+  name        String     @unique(map: "uq_format_name") @db.VarChar(100)
+  description String?
+  pressings   Pressing[]
+
+  @@map("formats")
+}
+
+model Release {
+  releaseId           Int             @id @default(autoincrement()) @map("release_id")
+  title               String          @db.VarChar(500)
+  originalReleaseYear Int             @map("original_release_year") @db.SmallInt
+  notes               String?
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pressings           Pressing[]
+  artists             ReleaseArtist[]
+  genres              ReleaseGenre[]
+
+  @@index([originalReleaseYear], map: "idx_releases_orig_year")
+  @@index([title], map: "idx_releases_title")
+  @@map("releases")
+}
+
+model ReleaseArtist {
+  releaseId   Int     @map("release_id")
+  artistId    Int     @map("artist_id")
+  artistOrder Int     @default(1) @map("artist_order") @db.SmallInt
+  role        String  @default("Primary Artist") @db.VarChar(100)
+  artist      Artist  @relation(fields: [artistId], references: [artistId], onUpdate: NoAction)
+  release     Release @relation(fields: [releaseId], references: [releaseId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([releaseId, artistId])
+  @@index([artistId], map: "idx_release_artists_artist")
+  @@map("release_artists")
+}
+
+model ReleaseGenre {
+  releaseId  Int     @map("release_id")
+  genreId    Int     @map("genre_id")
+  genreOrder Int     @default(1) @map("genre_order") @db.SmallInt
+  genre      Genre   @relation(fields: [genreId], references: [genreId], onUpdate: NoAction)
+  release    Release @relation(fields: [releaseId], references: [releaseId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([releaseId, genreId])
+  @@index([genreId], map: "idx_release_genres_genre")
+  @@map("release_genres")
+}
+
+model Pressing {
+  pressingId      Int             @id @default(autoincrement()) @map("pressing_id")
+  releaseId       Int             @map("release_id")
+  formatId        Int             @map("format_id")
+  pressingYear    Int?            @map("pressing_year") @db.SmallInt
+  country         String?         @db.VarChar(100)
+  label           String?         @db.VarChar(255)
+  catalogNumber   String?         @map("catalog_number") @db.VarChar(100)
+  vinylColor      String?         @map("vinyl_color") @db.VarChar(100)
+  discCount       Int             @default(1) @map("disc_count") @db.SmallInt
+  recordCondition ConditionGrade  @map("record_condition")
+  sleeveCondition ConditionGrade? @map("sleeve_condition")
+  notes           String?
+  purchasePrice   Decimal?        @map("purchase_price") @db.Decimal(10, 2)
+  purchaseDate    DateTime?       @map("purchase_date") @db.Date
+  currentValue    Decimal?        @map("current_value") @db.Decimal(10, 2)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  format          Format          @relation(fields: [formatId], references: [formatId], onUpdate: NoAction)
+  release         Release         @relation(fields: [releaseId], references: [releaseId], onUpdate: NoAction)
+
+  @@index([catalogNumber], map: "idx_pressings_catalog")
+  @@index([formatId], map: "idx_pressings_format")
+  @@index([pressingYear], map: "idx_pressings_pressing_year")
+  @@index([recordCondition], map: "idx_pressings_record_cond")
+  @@index([releaseId], map: "idx_pressings_release")
+  @@map("pressings")
+}
+
+enum ConditionGrade {
+  P
+  FR
+  G
+  G_PLUS   @map("G+")
+  VG_MINUS @map("VG-")
+  VG
+  VG_PLUS  @map("VG+")
+  NM
+  M
+  S  // Sealed
+
+  @@map("condition_grade")
+}
