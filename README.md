@@ -1,6 +1,6 @@
 # Vinyl Database
 
-A web application for managing a personal vinyl record collection, built with Next.js, Prisma, and PostgreSQL.
+A multi-user web application for managing a personal vinyl record collection, built with Next.js, Prisma, and PostgreSQL. Each account gets its own dedicated Postgres database, created automatically at registration.
 
 ## Prerequisites
 
@@ -42,12 +42,17 @@ brew services start postgresql@16
 
 ## Database Setup
 
-Create the database and load the schema (the schema file lives in the companion `vinyl-database-db` repository):
+This app uses two kinds of database:
 
-```bash
-createdb vinyl_database
-psql -d vinyl_database -f path/to/vinyl-database-db/db/schema.sql
-```
+- **A control-plane database** (`vinyl_control`) — shared, holds accounts and sessions. Create it once:
+
+  ```bash
+  createdb vinyl_control
+  ```
+
+  Its tables (`users`, `sessions`) are created automatically the first time the app connects — no schema file to load.
+
+- **A tenant database per account** (`vinyl_user_<random>`) — created automatically when someone registers via `/register`. You don't create these by hand.
 
 ## Project Setup
 
@@ -57,17 +62,30 @@ Install dependencies:
 npm install
 ```
 
-Create a `.env` file in the project root with your database connection string:
+Create a `.env` file in the project root:
 
 ```ini
+# Template used to derive both the Postgres maintenance connection (for CREATE DATABASE)
+# and every tenant database's connection — only the database name in the path differs.
 DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_database"
+
+# The shared control-plane database (accounts and sessions).
+CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
 ```
 
-Generate the Prisma client:
+Generate the Prisma client (used for tenant databases):
 
 ```bash
 npx prisma generate
 ```
+
+If you change `prisma/schema.prisma`, regenerate the DDL applied to new tenant databases:
+
+```bash
+npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > prisma/tenant-schema.sql
+```
+
+Existing tenant databases are **not** migrated automatically — that's a manual step per account today (see `DEVELOPER_GUIDE.md`).
 
 ## Running Tests
 
@@ -107,4 +125,4 @@ The suite covers utility functions, server actions, API route handlers, and inte
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. The app will redirect to the collection list at `/pressings`.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. After registering (or logging in), you'll land on the collection list at `/pressings`.

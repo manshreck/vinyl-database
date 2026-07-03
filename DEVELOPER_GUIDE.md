@@ -38,6 +38,7 @@ This guide covers the architecture, component contracts, data flow, and extensio
    - [Adding a New API Route](#86-adding-a-new-api-route)
    - [Adding Tests](#87-adding-tests)
 9. [Configuration Reference](#9-configuration-reference)
+10. [Authentication & Multi-Tenancy](#10-authentication--multi-tenancy)
 
 ---
 
@@ -58,6 +59,8 @@ Browser (client components)
 **Mutation model:** All writes go through Next.js Server Actions (`app/actions/`). Client components collect form data and call the action directly; the action validates, writes to the database via Prisma, and calls `redirect()`. There is no REST-style mutation API.
 
 **Search exception:** The advanced search page (`/search`) uses a raw SQL query via `prisma.$queryRaw` because it needs PostgreSQL's native `~*` regex operator, which is not expressible through Prisma's query builder.
+
+**Multi-tenancy:** VinylDB is multi-user, and isolation is at the database level — every account has its own dedicated Postgres database (`vinyl_user_<random>`), created automatically at registration. A small, separate **control-plane database** (`vinyl_control`) holds accounts and sessions and is shared by everyone. See [§10 Authentication & Multi-Tenancy](#10-authentication--multi-tenancy) for the full model.
 
 ---
 
@@ -222,37 +225,36 @@ vinyl-database/
 
 **Contract:** Prisma generates a type-safe client from `prisma/schema.prisma`. All database access goes through this client — there are no raw SQL queries except in `app/search/page.tsx`.
 
-**The Prisma singleton** lives in `lib/prisma.ts`:
+**Every account has its own database**, so there is no single static connection string — `lib/prisma.ts` exports `getTenantPrisma(databaseName)` instead of a plain singleton:
 
 ```typescript
-// lib/prisma.ts
-import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-
-function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
-  return new PrismaClient({ adapter })
+// lib/prisma.ts (simplified)
+export async function getTenantPrisma(databaseName: string): Promise<PrismaClient> {
+  // returns a cached client for this tenant, or creates + caches one
 }
-
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 ```
 
-- Uses `@prisma/adapter-pg` (the PostgreSQL adapter for Prisma 7).
-- `DATABASE_URL` must be set in `.env` (loaded by `prisma.config.ts`).
-- The singleton is cached on `globalThis` to survive hot-module replacement in development.
-- **Do not import `PrismaClient` anywhere else.** Always import `prisma` from `@/lib/prisma`.
+- Uses `@prisma/adapter-pg` (the PostgreSQL adapter for Prisma 7). The connection string is derived from the `DATABASE_URL` template by swapping its database name (see `lib/dbUrls.ts`).
+- Clients are cached in a `Map` on `globalThis` (survives HMR, like the old singleton did) and evicted after 30 minutes idle; each has a capped connection pool (`max: 5`) so a handful of tenants can't exhaust Postgres's `max_connections`.
+- `getTenantPrisma` does **no** authentication — callers must resolve `databaseName` via `requireSession()`/`getSession()` (`lib/session.ts`) first. See [§10](#10-authentication--multi-tenancy).
+- **Do not import `PrismaClient` anywhere else.** Always obtain a client via `getTenantPrisma` from `@/lib/prisma`.
 
 **Raw SQL** is used only in `app/search/page.tsx` via `prisma.$queryRaw<ResultRow[]>(Prisma.sql`...`)`. Parameterized with `Prisma.sql` template literals — never string-interpolate user input directly.
 
+**The control-plane database** (accounts/sessions) is separate from all of this — it's plain `pg`, not Prisma. See [§10](#10-authentication--multi-tenancy).
+
 ### 4.2 Prisma Client → Server Components
 
-Server components call `prisma.*` methods directly. They run on the server at request time, so there is no API boundary between the page and the database.
+Server components resolve the caller's session, then get a tenant-scoped client. They run on the server at request time, so there is no API boundary between the page and the database.
 
 **Pattern:**
 
 ```typescript
 // app/pressings/page.tsx (simplified)
 export default async function PressingsPage() {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const pressings = await prisma.pressing.findMany({
     include: { release: { include: { artists: { include: { artist: true } } } }, format: true },
     orderBy: [{ pressingYear: 'asc' }],
@@ -279,11 +281,12 @@ Server actions are the only mutation path. They are `async` functions marked `'u
 
 **Invariants all server actions must uphold:**
 
-1. Parse and validate all fields before writing to the database.
-2. Treat empty strings from form fields as `null` for optional database columns.
-3. Trim whitespace from all text inputs.
-4. Call `redirect()` as the final step — this throws internally (Next.js design) and terminates the action.
-5. Never return a value that the client depends on — use `redirect()` instead.
+1. Call `const session = await requireSession()` first, then `const prisma = await getTenantPrisma(session.databaseName)` — every mutation is scoped to the caller's own database. (Exception: `registerUser`/`loginUser`/`logoutUser` in `app/actions/`, which manage the control-plane database and sessions themselves — see [§10](#10-authentication--multi-tenancy).)
+2. Parse and validate all fields before writing to the database.
+3. Treat empty strings from form fields as `null` for optional database columns.
+4. Trim whitespace from all text inputs.
+5. Call `redirect()` as the final step — this throws internally (Next.js design) and terminates the action.
+6. Never return a value that the client depends on — use `redirect()` instead (the auth actions are the one exception, using `useActionState` to surface validation errors — see [§10](#10-authentication--multi-tenancy)).
 
 **FormData field naming** is the shared contract between client components (which build the `FormData`) and server actions (which read it). Any mismatch silently produces `null`. The field names for each action are documented in the [Component Reference](#5-component-reference) below.
 
@@ -293,10 +296,11 @@ The two API routes (`/api/releases/search`, `/api/artists/search`) are used excl
 
 **Contract:**
 
+- Call `const session = await getSession()` first (not `requireSession()` — an API route can't `redirect()` meaningfully for a `fetch` caller); if there's no session, return `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`.
 - Query parameter: `q` (string).
 - If `q.length < 2`, return `[]` immediately without querying the database.
 - Results are limited to `take: 10`.
-- Response is always a JSON array (never an error object).
+- Response is otherwise always a JSON array (never an error object) once authenticated.
 
 ### 4.5 Server Actions → Client Components
 
@@ -511,7 +515,7 @@ Minimal component. Calls `window.print()` and is hidden via `print:hidden` Tailw
 
 ### 5.3 Server Actions
 
-All actions are in `app/actions/`. All import `prisma` from `@/lib/prisma` and `redirect` from `next/navigation`.
+All actions are in `app/actions/`. The collection-management actions (`createPressing`, `updatePressing`, `deletePressing`, `updateRelease`) all start with `const session = await requireSession()` / `const prisma = await getTenantPrisma(session.databaseName)` and end with `redirect(...)`. The auth actions (`registerUser`, `loginUser`, `logoutUser`) are different — see [§10](#10-authentication--multi-tenancy).
 
 #### `createPressing(formData: FormData)`
 
@@ -748,14 +752,15 @@ No code changes are needed; the forms read all formats and genres from the datab
 ### 8.5 Adding a New Server Action
 
 1. Create `app/actions/myAction.ts` with `'use server'` at the top.
-2. Import `prisma` from `@/lib/prisma` and `redirect` from `next/navigation`.
-3. Accept `FormData` (for form-driven actions) or typed parameters (for programmatic actions).
-4. End with `redirect(destination)`.
-5. Import and call from the client component:
+2. Import `requireSession` from `@/lib/session` and `getTenantPrisma` from `@/lib/prisma`; import `redirect` from `next/navigation`.
+3. Start with `const session = await requireSession(); const prisma = await getTenantPrisma(session.databaseName)`.
+4. Accept `FormData` (for form-driven actions) or typed parameters (for programmatic actions).
+5. End with `redirect(destination)`.
+6. Import and call from the client component:
    ```typescript
    import { myAction } from '@/app/actions/myAction'
    ```
-6. Add a test in `__tests__/actions/myAction.test.ts` using the mock Prisma pattern established in the existing action tests.
+7. Add a test in `__tests__/actions/myAction.test.ts` using the mock pattern established in the existing action tests (mock both `@/lib/prisma`'s `getTenantPrisma` and `@/lib/session`'s `requireSession`).
 
 ### 8.6 Adding a New API Route
 
@@ -763,8 +768,9 @@ API routes should be added only for data that client components need to fetch as
 
 1. Create `app/api/{resource}/{operation}/route.ts`.
 2. Export a `GET` (or `POST`) function using `NextRequest` / `NextResponse`.
-3. Follow the established pattern: check minimum query length, query Prisma, return `NextResponse.json(results)`.
-4. Add a test in `__tests__/api/{resource}-{operation}.test.ts`.
+3. Start with `const session = await getSession(); if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`, then `const prisma = await getTenantPrisma(session.databaseName)`.
+4. Follow the established pattern: check minimum query length, query Prisma, return `NextResponse.json(results)`.
+5. Add a test in `__tests__/api/{resource}-{operation}.test.ts`, including a case asserting the 401 response when `getSession` resolves `null`.
 
 ### 8.7 Adding Tests
 
@@ -772,14 +778,17 @@ The test suite uses:
 - **`jest-environment-jsdom`** (default) for component tests.
 - **`@jest-environment node`** docblock for server action and API route tests (avoids DOM overhead and matches the actual server runtime).
 
-**Mocking Prisma:** All tests that involve Prisma mock the entire `@/lib/prisma` module:
+**Mocking Prisma:** All tests that involve Prisma mock `@/lib/prisma`'s `getTenantPrisma`, plus `@/lib/session` for whichever of `requireSession`/`getSession` the code under test calls:
 
 ```typescript
 const mockFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
-  prisma: {
+  getTenantPrisma: jest.fn().mockResolvedValue({
     pressing: { findMany: (...args: unknown[]) => mockFindMany(...args) },
-  },
+  }),
+}))
+jest.mock('@/lib/session', () => ({
+  requireSession: jest.fn().mockResolvedValue({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' }),
 }))
 ```
 
@@ -806,10 +815,13 @@ mockTransaction.mockImplementation(async (fn) => fn(mockTx))
 ## 9. Configuration Reference
 
 ### `prisma.config.ts`
-Prisma 7 datasource configuration. Reads `DATABASE_URL` from the environment (loaded by `dotenv/config`). The schema path is `prisma/schema.prisma`. This file takes precedence over any `url` field in `schema.prisma` — the schema file intentionally has no `url` in the `datasource` block.
+Prisma 7 datasource configuration. Reads `DATABASE_URL` from the environment (loaded by `dotenv/config`). The schema path is `prisma/schema.prisma`. This file takes precedence over any `url` field in `schema.prisma` — the schema file intentionally has no `url` in the `datasource` block. Note `DATABASE_URL` here is a *template*, not a single fixed database — see [§10](#10-authentication--multi-tenancy).
 
 ### `next.config.ts`
 Minimal. No special redirects, rewrites, or environment variable exposure configured.
+
+### `proxy.ts`
+Route protection (this Next.js version renamed Middleware to Proxy — see [§10](#10-authentication--multi-tenancy)). Runs on every request except `/login`, `/register`, and static assets; redirects to `/login` if the session cookie is absent.
 
 ### `tsconfig.json`
 - `strict: true` — all strict TypeScript checks are enabled.
@@ -826,4 +838,44 @@ Minimal. No special redirects, rewrites, or environment variable exposure config
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://user@localhost:5432/vinyl_database` |
+| `DATABASE_URL` | Yes | Connection **template** (host/port/credentials) — its database name is swapped out at runtime to reach the Postgres maintenance DB or any tenant's database. See `lib/dbUrls.ts`. |
+| `CONTROL_DATABASE_URL` | Yes | Full connection string to the shared control-plane database (`vinyl_control`), which holds `users` and `sessions`. |
+
+---
+
+## 10. Authentication & Multi-Tenancy
+
+**Why:** VinylDB started single-tenant (one shared database, no accounts). It's now multi-user, with each account's collection fully isolated in its own Postgres database rather than partitioned by a `user_id` column — simpler to reason about at this app's scale, and it means a schema bug or bad query in one tenant's data can't leak into another's.
+
+**Two databases, two access patterns:**
+
+- **Tenant databases** (`vinyl_user_<12 hex chars>`, one per account) hold the actual collection data (`prisma/schema.prisma` — artists, releases, pressings, etc.), accessed via Prisma exactly as before, just pointed at a per-user connection string (`lib/prisma.ts`'s `getTenantPrisma(databaseName)`).
+- **The control-plane database** (`vinyl_control`, one, shared) holds only `users` and `sessions`. It's accessed via a hand-written `pg.Pool` in `lib/controlDb.ts`, not Prisma — two tables didn't justify a second Prisma schema/client. Its tables are created idempotently (`CREATE TABLE IF NOT EXISTS`) the first time the pool is used, so there's no schema file to run by hand.
+
+**Session model:** Cookie-based, not JWT. `lib/session.ts` sets an httpOnly `session` cookie containing a random token; the control DB stores only its SHA-256 hash, mapped to a `user_id` and (via a join) the account's `databaseName`. `getSession()` reads and validates the cookie; `requireSession()` does the same but calls `redirect('/login')` if there's no valid session — used by pages and Server Actions. API routes use `getSession()` directly and return `401` instead, since a `redirect()` response is meaningless to a `fetch()` caller.
+
+**Route protection (`proxy.ts`):** This Next.js version renamed Middleware to Proxy — the file must be named `proxy.ts` (not `middleware.ts`), export a `proxy` function, and it runs on the Node.js runtime only (no Edge option). `proxy.ts` does a cheap, cookie-*presence*-only check and redirects to `/login` if it's missing. It deliberately does **not** hit the database — the authoritative check (validity, expiry, tenant resolution) happens anyway inside `requireSession()`/`getSession()` on every page render or action call, so duplicating it in `proxy.ts` would just double the round-trips with no security benefit. Don't rely on `proxy.ts` alone when adding a new route — the real check belongs in the page/action/route itself, matching the [official guidance](node_modules/next/dist/docs/01-app/02-guides/authentication.md) for this Next.js version.
+
+**Registration (`app/actions/registerUser.ts`)** is the one place that spans both databases:
+
+1. Validate input, hash the password (`lib/password.ts` — `crypto.scryptSync`, no external dependency), insert a `users` row in the control DB with a freshly generated `databaseName`.
+2. Provision the tenant database (`lib/provisionTenant.ts`): `CREATE DATABASE`, apply `prisma/tenant-schema.sql` (pre-generated DDL, **not** run through the Prisma CLI at request time — see below), and insert the reference data from `prisma/referenceData.ts` (the same formats/genres `prisma/seed.ts` uses).
+3. On any provisioning failure, roll back the `users` row and drop the partially-created database.
+4. Create a session and redirect to `/pressings`.
+
+**Why `prisma/tenant-schema.sql` instead of shelling out to `prisma db push`:** `prisma` and `tsx` are devDependencies — a production build (`next build && next start`) typically installs without them, so invoking the CLI from a running server would break outside local dev. The DDL is generated once, checked into the repo, and applied via plain `pg` instead:
+
+```bash
+npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > prisma/tenant-schema.sql
+```
+
+**Regenerate this file whenever `prisma/schema.prisma` changes.** There is currently no automated fan-out to existing tenant databases when the schema changes — each one would need the diff applied by hand (a `scripts/migrate-all-tenants.ts`-style maintenance script is the natural next step if/when this becomes painful, but doesn't exist yet).
+
+**Auth forms and validation errors:** Unlike the collection-management actions (which always `redirect()` and never return a value — see [§4.3](#43-prisma-client--server-actions)), `registerUser`/`loginUser` return `{ error: string } | null` and are driven by `useActionState` in `RegisterForm`/`LoginForm`, so invalid input can be shown inline instead of failing silently.
+
+**Admin dashboard (`/admin`):** A separate, single hardcoded account (`admin` / `password`, in `app/actions/loginAdmin.ts` — placeholder credentials, meant to be replaced with something real before this app is exposed beyond localhost) for viewing all registered accounts. It's intentionally isolated from the per-user auth system:
+
+- A distinct `admin_session` cookie and `admin_sessions` table (`lib/adminSession.ts`, `lib/controlDb.ts`) — not the same session as regular users, and not tied to a `user_id` since there's only one admin.
+- `proxy.ts`'s user-session check excludes `/admin*` entirely (its matcher is `(?!login|register|admin|...)`); `/admin/page.tsx` gates itself with `requireAdminSession()` instead.
+- The dashboard (`app/admin/page.tsx`) lists every row from `controlDb.listUsers()` (email, `createdAt`, `lastLoginAt`) alongside a live pressing count per account via `lib/adminStats.ts`'s `countPressings(databaseName)` — a short-lived `pg.Client` connected directly to that tenant's database, deliberately bypassing the `getTenantPrisma` cache so that listing every account doesn't pin open a Prisma connection pool per tenant just for an admin page view.
+- `lastLoginAt` is updated in `createSessionCookie()` (`lib/session.ts`), so both registration and login count as a "login" for this purpose.

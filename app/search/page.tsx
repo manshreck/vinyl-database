@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import { wildcardToRegex } from '@/lib/wildcardToRegex'
 import { Prisma } from '@prisma/client'
 import Link from 'next/link'
@@ -33,6 +34,9 @@ type SearchParams = Promise<{
 
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const { title, artist, year, regex } = await searchParams
 
   const useRegex = regex === '1'

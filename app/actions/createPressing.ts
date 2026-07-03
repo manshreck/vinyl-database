@@ -1,10 +1,14 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import { ConditionGrade } from '@prisma/client'
 import { redirect } from 'next/navigation'
 
 export async function createPressing(formData: FormData) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const existingReleaseId = formData.get('releaseId')
     ? Number(formData.get('releaseId'))
     : null

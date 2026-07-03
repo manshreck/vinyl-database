@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import EditPressingForm from './EditPressingForm'
@@ -8,6 +9,9 @@ export default async function EditPressingPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const { id } = await params
   const pressingId = Number(id)
 

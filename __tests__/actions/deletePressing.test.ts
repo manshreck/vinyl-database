@@ -7,9 +7,13 @@ const mockDelete = jest.fn()
 const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
-  prisma: {
+  getTenantPrisma: jest.fn().mockResolvedValue({
     pressing: { delete: (...args: unknown[]) => mockDelete(...args) },
-  },
+  }),
+}))
+
+jest.mock('@/lib/session', () => ({
+  requireSession: jest.fn().mockResolvedValue({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' }),
 }))
 
 jest.mock('next/navigation', () => ({

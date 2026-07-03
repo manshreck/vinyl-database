@@ -1,10 +1,14 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import { ConditionGrade } from '@prisma/client'
 import { redirect } from 'next/navigation'
 
 export async function updatePressing(id: number, formData: FormData) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const sleeveConditionRaw = formData.get('sleeveCondition') as string
   const pressingYearRaw = formData.get('pressingYear') as string
   const purchasePriceRaw = formData.get('purchasePrice') as string

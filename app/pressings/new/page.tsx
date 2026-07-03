@@ -1,8 +1,12 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import Link from 'next/link'
 import PressingsForm from './PressingsForm'
 
 export default async function NewPressingPage() {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const [formats, genres] = await Promise.all([
     prisma.format.findMany({ orderBy: { name: 'asc' } }),
     prisma.genre.findMany({ orderBy: { name: 'asc' } }),

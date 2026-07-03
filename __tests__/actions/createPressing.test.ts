@@ -9,11 +9,15 @@ const mockPressingCreate = jest.fn()
 const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
-  prisma: {
+  getTenantPrisma: jest.fn().mockResolvedValue({
     artist: { create: (...args: unknown[]) => mockArtistCreate(...args) },
     release: { create: (...args: unknown[]) => mockReleaseCreate(...args) },
     pressing: { create: (...args: unknown[]) => mockPressingCreate(...args) },
-  },
+  }),
+}))
+
+jest.mock('@/lib/session', () => ({
+  requireSession: jest.fn().mockResolvedValue({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' }),
 }))
 
 jest.mock('next/navigation', () => ({

@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import { artistSortKey } from '@/lib/artistSort'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -21,6 +22,9 @@ const conditionLabel: Record<string, string> = {
 type SearchParams = Promise<{ artistId?: string; formatId?: string; genreId?: string }>
 
 export default async function PressingsPage({ searchParams }: { searchParams: SearchParams }) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const { artistId, formatId, genreId } = await searchParams
 
   const [pressings, artists, formats, genres] = await Promise.all([

@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import EditReleaseForm from './EditReleaseForm'
@@ -9,6 +10,9 @@ type Props = {
 }
 
 export default async function EditReleasePage({ params, searchParams }: Props) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const { id } = await params
   const { returnTo } = await searchParams
   const releaseId = Number(id)

@@ -1,8 +1,12 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import Link from 'next/link'
 import PrintButton from './PrintButton'
 
 export default async function InsurancePage() {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const pressings = await prisma.pressing.findMany({
     include: {
       format: true,

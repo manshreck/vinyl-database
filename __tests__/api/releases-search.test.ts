@@ -2,14 +2,19 @@
  * @jest-environment node
  */
 import { GET } from '@/app/api/releases/search/route'
+import { getSession } from '@/lib/session'
 import { NextRequest } from 'next/server'
 
 const mockFindMany = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
-  prisma: {
+  getTenantPrisma: jest.fn().mockResolvedValue({
     release: { findMany: (...args: unknown[]) => mockFindMany(...args) },
-  },
+  }),
+}))
+
+jest.mock('@/lib/session', () => ({
+  getSession: jest.fn().mockResolvedValue({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' }),
 }))
 
 function makeRequest(q: string): NextRequest {
@@ -20,6 +25,18 @@ describe('GET /api/releases/search', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFindMany.mockResolvedValue([])
+    ;(getSession as jest.Mock).mockResolvedValue({
+      userId: 1,
+      email: 'a@b.com',
+      databaseName: 'vinyl_user_test',
+    })
+  })
+
+  it('returns 401 when there is no session', async () => {
+    ;(getSession as jest.Mock).mockResolvedValue(null)
+    const res = await GET(makeRequest('kind'))
+    expect(res.status).toBe(401)
+    expect(mockFindMany).not.toHaveBeenCalled()
   })
 
   it('returns an empty array when q is shorter than 2 characters', async () => {

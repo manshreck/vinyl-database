@@ -1,6 +1,7 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/prisma'
+import { requireSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 
 export async function updateRelease(
@@ -8,6 +9,9 @@ export async function updateRelease(
   returnTo: string,
   formData: FormData
 ) {
+  const session = await requireSession()
+  const prisma = await getTenantPrisma(session.databaseName)
+
   const title = (formData.get('title') as string).trim()
   const originalReleaseYear = Number(formData.get('originalReleaseYear'))
   const notes = (formData.get('notes') as string).trim() || null

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as dotenv from 'dotenv'
+import { FORMATS, GENRES } from './referenceData'
 
 dotenv.config()
 
@@ -8,20 +9,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  const formats = [
-    { name: '7"', description: '7-inch single' },
-    { name: '10"', description: '10-inch record' },
-    { name: '12"', description: '12-inch single or EP' },
-    { name: 'LP', description: 'Long play, 12-inch album' },
-    { name: '2xLP', description: 'Double album' },
-    { name: '3xLP', description: 'Triple album' },
-    { name: '4xLP', description: 'Quadruple album' },
-    { name: 'Box Set', description: 'Multi-record box set' },
-    { name: 'Cassette', description: 'Cassette tape' },
-    { name: 'CD', description: 'Compact disc' },
-  ]
-
-  for (const format of formats) {
+  for (const format of FORMATS) {
     await prisma.format.upsert({
       where: { name: format.name },
       update: {},
@@ -29,30 +17,9 @@ async function main() {
     })
   }
 
-  console.log(`Seeded ${formats.length} formats.`)
+  console.log(`Seeded ${FORMATS.length} formats.`)
 
-  const genres = [
-    'Ambient',
-    'Blues',
-    'Classical',
-    'Country',
-    'Electronic',
-    'Folk',
-    'Funk',
-    'Hip-Hop',
-    'Jazz',
-    'Latin',
-    'Metal',
-    'Pop',
-    'Punk',
-    'R&B / Soul',
-    'Reggae',
-    'Rock',
-    'Spoken Word',
-    'World',
-  ]
-
-  for (const name of genres) {
+  for (const name of GENRES) {
     await prisma.genre.upsert({
       where: { name },
       update: {},
@@ -60,7 +27,7 @@ async function main() {
     })
   }
 
-  console.log(`Seeded ${genres.length} genres.`)
+  console.log(`Seeded ${GENRES.length} genres.`)
 }
 
 main()
