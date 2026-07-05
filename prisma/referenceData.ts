@@ -13,7 +13,7 @@ export const GENRES = [
   'Blues',
   'Classical',
   'Country',
-  'Electronic',
+  'Electronica',
   'Folk',
   'Funk',
   'Hip-Hop',
@@ -25,6 +25,7 @@ export const GENRES = [
   'R&B / Soul',
   'Reggae',
   'Rock',
+  'Soundtrack',
   'Spoken Word',
   'World',
 ]
