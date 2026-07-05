@@ -124,8 +124,8 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
             <table className="w-full text-sm">
               <thead className="bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 text-left">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Artist</th>
                   <th className="px-4 py-3 font-medium">Title</th>
+                  <th className="px-4 py-3 font-medium">Artist</th>
                   <th className="px-4 py-3 font-medium">Format</th>
                   <th className="px-4 py-3 font-medium">Pressing Year</th>
                   <th className="px-4 py-3 font-medium">Label</th>
@@ -144,16 +144,6 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                       key={pressing.pressingId}
                       className="bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                     >
-                      <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
-                        {pressing.release.artists.map((ra, i) => (
-                          <span key={ra.artist.artistId}>
-                            {i > 0 && ', '}
-                            <Link href={`/artists/${ra.artist.artistId}`} className="hover:underline">
-                              {ra.artist.name}
-                            </Link>
-                          </span>
-                        ))}
-                      </td>
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
                         <Link
                           href={`/pressings/${pressing.pressingId}`}
@@ -164,6 +154,16 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                         <span className="ml-2 text-xs text-zinc-400">
                           ({pressing.release.originalReleaseYear})
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                        {pressing.release.artists.map((ra, i) => (
+                          <span key={ra.artist.artistId}>
+                            {i > 0 && ', '}
+                            <Link href={`/artists/${ra.artist.artistId}`} className="hover:underline">
+                              {ra.artist.name}
+                            </Link>
+                          </span>
+                        ))}
                       </td>
                       <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                         {pressing.format.name}
