@@ -147,7 +147,7 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
                         <Link
                           href={`/pressings/${pressing.pressingId}`}
-                          className="hover:underline"
+                          className="underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
                         >
                           {pressing.release.title}
                         </Link>
@@ -195,7 +195,7 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                       <td className="px-4 py-3 text-right">
                         <Link
                           href={`/pressings/${pressing.pressingId}/edit`}
-                          className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                          className="text-sm underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
                         >
                           Edit
                         </Link>

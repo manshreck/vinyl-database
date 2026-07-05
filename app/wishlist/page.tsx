@@ -101,7 +101,7 @@ export default async function WishlistPage() {
                     <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
                       <Link
                         href={`/wishlist/${item.wishlistItemId}`}
-                        className="hover:underline"
+                        className="underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
                       >
                         {item.release.title}
                       </Link>
@@ -142,7 +142,7 @@ export default async function WishlistPage() {
                     <td className="px-4 py-3 text-right">
                       <Link
                         href={`/wishlist/${item.wishlistItemId}/add-to-collection`}
-                        className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 whitespace-nowrap"
+                        className="text-sm underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300 whitespace-nowrap"
                       >
                         Add to Collection
                       </Link>
