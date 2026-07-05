@@ -2,21 +2,18 @@
 
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
-import { resolveReleaseId } from '@/lib/releaseIntake'
 import { redirect } from 'next/navigation'
 
-export async function createWishlistItem(formData: FormData) {
+export async function updateWishlistItem(id: number, formData: FormData) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const releaseId = await resolveReleaseId(prisma, formData)
-
-  const vinylColorRaw = formData.get('vinylColor') as string
   const pressingYearRaw = formData.get('pressingYear') as string
+  const vinylColorRaw = formData.get('vinylColor') as string
 
-  await prisma.wishlistItem.create({
+  await prisma.wishlistItem.update({
+    where: { wishlistItemId: id },
     data: {
-      releaseId,
       formatId: Number(formData.get('formatId')),
       pressingYear: pressingYearRaw ? Number(pressingYearRaw) : null,
       country: (formData.get('country') as string).trim() || null,

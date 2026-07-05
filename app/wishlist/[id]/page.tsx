@@ -2,20 +2,6 @@ import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import WishlistItemActions from './WishlistItemActions'
-
-const conditionLabel: Record<string, string> = {
-  P: 'P — Poor',
-  FR: 'FR — Fair',
-  G: 'G — Good',
-  G_PLUS: 'G+ — Good Plus',
-  VG_MINUS: 'VG- — Very Good Minus',
-  VG: 'VG — Very Good',
-  VG_PLUS: 'VG+ — Very Good Plus',
-  NM: 'NM — Near Mint',
-  M: 'M — Mint',
-  S: 'S — Sealed',
-}
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -84,12 +70,20 @@ export default async function WishlistItemPage({
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400">{artists}</p>
           </div>
-          <Link
-            href={`/wishlist/${wishlistItemId}/add-to-collection`}
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors whitespace-nowrap"
-          >
-            Add to Collection
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/wishlist/${wishlistItemId}/edit`}
+              className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+            >
+              Edit
+            </Link>
+            <Link
+              href={`/wishlist/${wishlistItemId}/add-to-collection`}
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors whitespace-nowrap"
+            >
+              Add to Collection
+            </Link>
+          </div>
         </div>
 
         {/* Release details */}
@@ -130,20 +124,6 @@ export default async function WishlistItemPage({
                 }
               />
             )}
-          </dl>
-        </section>
-
-        {/* Condition */}
-        <section className="mb-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Condition wanted
-          </h2>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <Field label="Record" value={conditionLabel[item.recordCondition]} />
-            <Field
-              label="Sleeve"
-              value={item.sleeveCondition ? conditionLabel[item.sleeveCondition] : null}
-            />
             {item.notes && (
               <div className="col-span-2">
                 <Field label="Notes" value={item.notes} />
@@ -151,8 +131,6 @@ export default async function WishlistItemPage({
             )}
           </dl>
         </section>
-
-        <WishlistItemActions wishlistItemId={wishlistItemId} />
       </div>
     </div>
   )

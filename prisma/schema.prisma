@@ -107,22 +107,20 @@ model Pressing {
 }
 
 model WishlistItem {
-  wishlistItemId  Int             @id @default(autoincrement()) @map("wishlist_item_id")
-  releaseId       Int             @map("release_id")
-  formatId        Int             @map("format_id")
-  pressingYear    Int?            @map("pressing_year") @db.SmallInt
-  country         String?         @db.VarChar(100)
-  label           String?         @db.VarChar(255)
-  catalogNumber   String?         @map("catalog_number") @db.VarChar(100)
-  vinylColor      String?         @map("vinyl_color") @db.VarChar(100)
-  discCount       Int             @default(1) @map("disc_count") @db.SmallInt
-  recordCondition ConditionGrade  @map("record_condition")
-  sleeveCondition ConditionGrade? @map("sleeve_condition")
-  notes           String?
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  format          Format          @relation(fields: [formatId], references: [formatId], onUpdate: NoAction)
-  release         Release         @relation(fields: [releaseId], references: [releaseId], onUpdate: NoAction)
+  wishlistItemId Int      @id @default(autoincrement()) @map("wishlist_item_id")
+  releaseId      Int      @map("release_id")
+  formatId       Int      @map("format_id")
+  pressingYear   Int?     @map("pressing_year") @db.SmallInt
+  country        String?  @db.VarChar(100)
+  label          String?  @db.VarChar(255)
+  catalogNumber  String?  @map("catalog_number") @db.VarChar(100)
+  vinylColor     String?  @map("vinyl_color") @db.VarChar(100)
+  discCount      Int      @default(1) @map("disc_count") @db.SmallInt
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  format         Format   @relation(fields: [formatId], references: [formatId], onUpdate: NoAction)
+  release        Release  @relation(fields: [releaseId], references: [releaseId], onUpdate: NoAction)
 
   @@index([formatId], map: "idx_wishlist_items_format")
   @@index([releaseId], map: "idx_wishlist_items_release")

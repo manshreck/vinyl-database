@@ -2,6 +2,7 @@
 
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
+import { ConditionGrade } from '@prisma/client'
 import { notFound, redirect } from 'next/navigation'
 
 export async function addWishlistItemToCollection(id: number, formData: FormData) {
@@ -11,6 +12,7 @@ export async function addWishlistItemToCollection(id: number, formData: FormData
   const wishlistItem = await prisma.wishlistItem.findUnique({ where: { wishlistItemId: id } })
   if (!wishlistItem) notFound()
 
+  const sleeveConditionRaw = formData.get('sleeveCondition') as string
   const purchasePriceRaw = formData.get('purchasePrice') as string
   const purchaseDateRaw = formData.get('purchaseDate') as string
   const currentValueRaw = formData.get('currentValue') as string
@@ -26,8 +28,8 @@ export async function addWishlistItemToCollection(id: number, formData: FormData
         catalogNumber: wishlistItem.catalogNumber,
         vinylColor: wishlistItem.vinylColor,
         discCount: wishlistItem.discCount,
-        recordCondition: wishlistItem.recordCondition,
-        sleeveCondition: wishlistItem.sleeveCondition,
+        recordCondition: formData.get('recordCondition') as ConditionGrade,
+        sleeveCondition: sleeveConditionRaw ? (sleeveConditionRaw as ConditionGrade) : null,
         notes: wishlistItem.notes,
         purchasePrice: purchasePriceRaw ? Number(purchasePriceRaw) : null,
         purchaseDate: purchaseDateRaw ? new Date(purchaseDateRaw) : null,

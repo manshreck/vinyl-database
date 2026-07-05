@@ -96,8 +96,6 @@ CREATE TABLE "wishlist_items" (
     "catalog_number" VARCHAR(100),
     "vinyl_color" VARCHAR(100),
     "disc_count" SMALLINT NOT NULL DEFAULT 1,
-    "record_condition" "condition_grade" NOT NULL,
-    "sleeve_condition" "condition_grade",
     "notes" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,

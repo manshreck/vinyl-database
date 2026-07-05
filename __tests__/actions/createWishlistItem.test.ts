@@ -38,8 +38,6 @@ function makeFormData(fields: Record<string, string | string[]>): FormData {
 
 const WISHLIST_FIELDS = {
   formatId: '2',
-  recordCondition: 'NM',
-  sleeveCondition: '',
   pressingYear: '1975',
   country: 'US',
   label: 'Island',
@@ -83,13 +81,15 @@ describe('createWishlistItem', () => {
     )
   })
 
-  it('does not include cost fields in the create payload', async () => {
+  it('does not include cost or condition fields in the create payload', async () => {
     const fd = makeFormData({ ...WISHLIST_FIELDS, releaseId: '5' })
     await createWishlistItem(fd)
     const data = mockWishlistItemCreate.mock.calls[0][0].data
     expect(data).not.toHaveProperty('purchasePrice')
     expect(data).not.toHaveProperty('purchaseDate')
     expect(data).not.toHaveProperty('currentValue')
+    expect(data).not.toHaveProperty('recordCondition')
+    expect(data).not.toHaveProperty('sleeveCondition')
   })
 
   it('redirects to /wishlist after creation', async () => {

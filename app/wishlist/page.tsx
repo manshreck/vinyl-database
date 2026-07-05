@@ -3,19 +3,6 @@ import { requireSession } from '@/lib/session'
 import { artistSortKey } from '@/lib/artistSort'
 import Link from 'next/link'
 
-const conditionLabel: Record<string, string> = {
-  P: 'P',
-  FR: 'FR',
-  G: 'G',
-  G_PLUS: 'G+',
-  VG_MINUS: 'VG-',
-  VG: 'VG',
-  VG_PLUS: 'VG+',
-  NM: 'NM',
-  M: 'M',
-  S: 'S',
-}
-
 export default async function WishlistPage() {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
@@ -88,7 +75,6 @@ export default async function WishlistPage() {
                   <th className="px-4 py-3 font-medium">Pressing Year</th>
                   <th className="px-4 py-3 font-medium">Label</th>
                   <th className="px-4 py-3 font-medium">Catalog #</th>
-                  <th className="px-4 py-3 font-medium">Condition</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -133,11 +119,6 @@ export default async function WishlistPage() {
                           {item.vinylColor}
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                        {conditionLabel[item.recordCondition]}
-                      </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

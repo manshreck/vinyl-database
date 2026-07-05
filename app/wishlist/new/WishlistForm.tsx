@@ -4,19 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createWishlistItem } from '@/app/actions/createWishlistItem'
 
-const CONDITIONS = [
-  { value: 'P', label: 'P — Poor' },
-  { value: 'FR', label: 'FR — Fair' },
-  { value: 'G', label: 'G — Good' },
-  { value: 'G_PLUS', label: 'G+ — Good Plus' },
-  { value: 'VG_MINUS', label: 'VG- — Very Good Minus' },
-  { value: 'VG', label: 'VG — Very Good' },
-  { value: 'VG_PLUS', label: 'VG+ — Very Good Plus' },
-  { value: 'NM', label: 'NM — Near Mint' },
-  { value: 'M', label: 'M — Mint' },
-  { value: 'S', label: 'S — Sealed' },
-]
-
 type ReleaseResult = {
   releaseId: number
   title: string
@@ -296,26 +283,6 @@ export default function WishlistForm({ formats, genres }: Props) {
             <div>
               <label className={labelClass}>Number of discs</label>
               <input name="discCount" type="number" min={1} max={50} defaultValue={1} required className={inputClass} />
-            </div>
-
-            <div>
-              <label className={labelClass}>Record condition</label>
-              <select name="recordCondition" required className={inputClass}>
-                <option value="">Select…</option>
-                {CONDITIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelClass}>Sleeve condition</label>
-              <select name="sleeveCondition" className={inputClass}>
-                <option value="">None / unknown</option>
-                {CONDITIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
             </div>
 
             <div>

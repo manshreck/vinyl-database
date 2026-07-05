@@ -3,6 +3,19 @@
 import { useState } from 'react'
 import { addWishlistItemToCollection } from '@/app/actions/addWishlistItemToCollection'
 
+const CONDITIONS = [
+  { value: 'P', label: 'P — Poor' },
+  { value: 'FR', label: 'FR — Fair' },
+  { value: 'G', label: 'G — Good' },
+  { value: 'G_PLUS', label: 'G+ — Good Plus' },
+  { value: 'VG_MINUS', label: 'VG- — Very Good Minus' },
+  { value: 'VG', label: 'VG — Very Good' },
+  { value: 'VG_PLUS', label: 'VG+ — Very Good Plus' },
+  { value: 'NM', label: 'NM — Near Mint' },
+  { value: 'M', label: 'M — Mint' },
+  { value: 'S', label: 'S — Sealed' },
+]
+
 type Props = {
   wishlistItemId: number
   defaultPurchaseDate: string
@@ -23,6 +36,28 @@ export default function AddToCollectionForm({ wishlistItemId, defaultPurchaseDat
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         This moves the pressing from your wishlist into your collection.
       </p>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelClass}>Record condition</label>
+          <select name="recordCondition" required className={inputClass}>
+            <option value="">Select…</option>
+            {CONDITIONS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={labelClass}>Sleeve condition</label>
+          <select name="sleeveCondition" className={inputClass}>
+            <option value="">None / unknown</option>
+            {CONDITIONS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div>
         <label className={labelClass}>Purchase date</label>
