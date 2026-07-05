@@ -88,7 +88,7 @@ describe('registerUser', () => {
     expect(mockCreateUser).toHaveBeenCalledWith('new@example.com', 'hashed:password', 'vinyl_user_abc123abc123')
     expect(mockCreateTenantDatabase).toHaveBeenCalledWith('vinyl_user_abc123abc123')
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(1)
-    expect(mockRedirect).toHaveBeenCalledWith('/pressings')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 
   it('rolls back the user row when tenant provisioning fails', async () => {

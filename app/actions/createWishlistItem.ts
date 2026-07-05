@@ -6,21 +6,17 @@ import { resolveReleaseId } from '@/lib/releaseIntake'
 import { ConditionGrade } from '@prisma/client'
 import { redirect } from 'next/navigation'
 
-export async function createPressing(formData: FormData) {
+export async function createWishlistItem(formData: FormData) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
   const releaseId = await resolveReleaseId(prisma, formData)
 
-  // Parse pressing fields
   const vinylColorRaw = formData.get('vinylColor') as string
   const sleeveConditionRaw = formData.get('sleeveCondition') as string
   const pressingYearRaw = formData.get('pressingYear') as string
-  const purchasePriceRaw = formData.get('purchasePrice') as string
-  const purchaseDateRaw = formData.get('purchaseDate') as string
-  const currentValueRaw = formData.get('currentValue') as string
 
-  await prisma.pressing.create({
+  await prisma.wishlistItem.create({
     data: {
       releaseId,
       formatId: Number(formData.get('formatId')),
@@ -33,11 +29,8 @@ export async function createPressing(formData: FormData) {
       vinylColor: vinylColorRaw.trim() || null,
       discCount: Number(formData.get('discCount')) || 1,
       notes: (formData.get('notes') as string).trim() || null,
-      purchasePrice: purchasePriceRaw ? Number(purchasePriceRaw) : null,
-      purchaseDate: purchaseDateRaw ? new Date(purchaseDateRaw) : null,
-      currentValue: currentValueRaw ? Number(currentValueRaw) : null,
     },
   })
 
-  redirect('/pressings')
+  redirect('/wishlist')
 }

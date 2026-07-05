@@ -85,6 +85,26 @@ CREATE TABLE "pressings" (
     CONSTRAINT "pressings_pkey" PRIMARY KEY ("pressing_id")
 );
 
+-- CreateTable
+CREATE TABLE "wishlist_items" (
+    "wishlist_item_id" SERIAL NOT NULL,
+    "release_id" INTEGER NOT NULL,
+    "format_id" INTEGER NOT NULL,
+    "pressing_year" SMALLINT,
+    "country" VARCHAR(100),
+    "label" VARCHAR(255),
+    "catalog_number" VARCHAR(100),
+    "vinyl_color" VARCHAR(100),
+    "disc_count" SMALLINT NOT NULL DEFAULT 1,
+    "record_condition" "condition_grade" NOT NULL,
+    "sleeve_condition" "condition_grade",
+    "notes" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "wishlist_items_pkey" PRIMARY KEY ("wishlist_item_id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uq_artist_name" ON "artists"("name");
 
@@ -124,6 +144,12 @@ CREATE INDEX "idx_pressings_record_cond" ON "pressings"("record_condition");
 -- CreateIndex
 CREATE INDEX "idx_pressings_release" ON "pressings"("release_id");
 
+-- CreateIndex
+CREATE INDEX "idx_wishlist_items_format" ON "wishlist_items"("format_id");
+
+-- CreateIndex
+CREATE INDEX "idx_wishlist_items_release" ON "wishlist_items"("release_id");
+
 -- AddForeignKey
 ALTER TABLE "release_artists" ADD CONSTRAINT "release_artists_artist_id_fkey" FOREIGN KEY ("artist_id") REFERENCES "artists"("artist_id") ON DELETE RESTRICT ON UPDATE NO ACTION;
 
@@ -141,4 +167,10 @@ ALTER TABLE "pressings" ADD CONSTRAINT "pressings_format_id_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "pressings" ADD CONSTRAINT "pressings_release_id_fkey" FOREIGN KEY ("release_id") REFERENCES "releases"("release_id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "wishlist_items" ADD CONSTRAINT "wishlist_items_format_id_fkey" FOREIGN KEY ("format_id") REFERENCES "formats"("format_id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "wishlist_items" ADD CONSTRAINT "wishlist_items_release_id_fkey" FOREIGN KEY ("release_id") REFERENCES "releases"("release_id") ON DELETE RESTRICT ON UPDATE NO ACTION;
 

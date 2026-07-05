@@ -17,5 +17,5 @@ export async function loginUser(_prevState: FormState, formData: FormData): Prom
   }
 
   await createSessionCookie(user.id)
-  redirect('/pressings')
+  redirect('/')
 }

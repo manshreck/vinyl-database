@@ -55,6 +55,6 @@ describe('loginUser', () => {
     mockVerifyPassword.mockReturnValue(true)
     await loginUser(null, makeFormData({ email: 'a@b.com', password: 'correct' }))
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(1)
-    expect(mockRedirect).toHaveBeenCalledWith('/pressings')
+    expect(mockRedirect).toHaveBeenCalledWith('/')
   })
 })
