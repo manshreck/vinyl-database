@@ -71,7 +71,20 @@ DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_database"
 
 # The shared control-plane database (accounts and sessions).
 CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
+
+# Powers the "Search Discogs" feature (searching Discogs' catalog and prefilling
+# a new pressing/wishlist item from a result). Optional — the rest of the app works
+# without it, but /discogs will show a "not configured" error until it's set.
+DISCOGS_TOKEN="your_discogs_personal_access_token"
 ```
+
+To get a Discogs token:
+
+1. Sign in (or create a free account) at [discogs.com](https://www.discogs.com).
+2. Go to **Settings → Developers** ([discogs.com/settings/developers](https://www.discogs.com/settings/developers)).
+3. Click **Generate new token** and copy it into `DISCOGS_TOKEN` above.
+
+This is a personal access token tied to your Discogs account, not per-app-user credentials — every search request the app makes uses this single token server-side, so individual users of this app never need their own Discogs account. Discogs' free tier caps authenticated requests at 60/minute, shared across the whole app.
 
 Generate the Prisma client (used for tenant databases):
 

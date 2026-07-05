@@ -157,6 +157,35 @@ describe('createPressing', () => {
         expect.objectContaining({ data: expect.objectContaining({ releaseId: 88 }) })
       )
     })
+
+    it('passes newReleaseCoverImageUrl through to the release create', async () => {
+      const fd = makeFormData({
+        ...PRESSING_FIELDS,
+        newReleaseTitle: 'Exodus',
+        newReleaseYear: '1977',
+        newArtistName: 'Bob Marley',
+        newReleaseCoverImageUrl: 'https://i.discogs.com/cover.jpg',
+      })
+      await createPressing(fd)
+      expect(mockReleaseCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ coverImageUrl: 'https://i.discogs.com/cover.jpg' }),
+        })
+      )
+    })
+
+    it('sets coverImageUrl to null when not provided', async () => {
+      const fd = makeFormData({
+        ...PRESSING_FIELDS,
+        newReleaseTitle: 'Exodus',
+        newReleaseYear: '1977',
+        newArtistName: 'Bob Marley',
+      })
+      await createPressing(fd)
+      expect(mockReleaseCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ coverImageUrl: null }) })
+      )
+    })
   })
 
   it('redirects to /pressings after creation', async () => {

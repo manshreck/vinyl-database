@@ -1,9 +1,13 @@
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
+import { getDiscogsRelease } from '@/lib/discogs'
+import { buildDiscogsInitialValues } from '@/lib/discogsMapping'
 import Link from 'next/link'
-import PressingsForm from './PressingsForm'
+import PressingsForm, { type PressingInitialValues } from './PressingsForm'
 
-export default async function NewPressingPage() {
+type SearchParams = Promise<{ discogsId?: string }>
+
+export default async function NewPressingPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
@@ -11,6 +15,36 @@ export default async function NewPressingPage() {
     prisma.format.findMany({ orderBy: { name: 'asc' } }),
     prisma.genre.findMany({ orderBy: { name: 'asc' } }),
   ])
+
+  const { discogsId } = await searchParams
+  let initialValues: PressingInitialValues | undefined
+
+  if (discogsId) {
+    try {
+      const release = await getDiscogsRelease(Number(discogsId))
+      const discogsValues = buildDiscogsInitialValues(release)
+      const matchedFormat = formats.find((f) => f.name === discogsValues.formatName)
+      const matchedGenreIds = genres
+        .filter((g) => discogsValues.genreNames.includes(g.name))
+        .map((g) => g.genreId)
+
+      initialValues = {
+        title: discogsValues.title,
+        originalReleaseYear: discogsValues.originalReleaseYear,
+        artistName: discogsValues.artistName,
+        genreIds: matchedGenreIds,
+        formatId: matchedFormat?.formatId ?? null,
+        country: discogsValues.country,
+        label: discogsValues.label,
+        catalogNumber: discogsValues.catalogNumber,
+        discCount: discogsValues.discCount,
+        coverImageUrl: discogsValues.coverImageUrl,
+      }
+    } catch (err) {
+      // A Discogs hiccup shouldn't block manually adding a record
+      console.error('Failed to prefill from Discogs:', err)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -27,7 +61,7 @@ export default async function NewPressingPage() {
           </h1>
         </div>
 
-        <PressingsForm formats={formats} genres={genres} />
+        <PressingsForm formats={formats} genres={genres} initialValues={initialValues} />
       </div>
     </div>
   )

@@ -19,9 +19,23 @@ type ArtistResult = {
 type Format = { formatId: number; name: string }
 type Genre = { genreId: number; name: string }
 
+export type WishlistInitialValues = {
+  title: string
+  originalReleaseYear: number
+  artistName: string
+  genreIds: number[]
+  formatId: number | null
+  country: string | null
+  label: string | null
+  catalogNumber: string | null
+  discCount: number
+  coverImageUrl: string | null
+}
+
 type Props = {
   formats: Format[]
   genres: Genre[]
+  initialValues?: WishlistInitialValues
 }
 
 function useDebounce(value: string, delay: number) {
@@ -33,21 +47,21 @@ function useDebounce(value: string, delay: number) {
   return debounced
 }
 
-export default function WishlistForm({ formats, genres }: Props) {
+export default function WishlistForm({ formats, genres, initialValues }: Props) {
   // Release search
-  const [releaseQuery, setReleaseQuery] = useState('')
+  const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? '')
   const [releaseResults, setReleaseResults] = useState<ReleaseResult[]>([])
   const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(null)
   const [creatingRelease, setCreatingRelease] = useState(false)
   const debouncedReleaseQuery = useDebounce(releaseQuery, 300)
 
   // New release / artist fields
-  const [artistQuery, setArtistQuery] = useState('')
+  const [artistQuery, setArtistQuery] = useState(initialValues?.artistName ?? '')
   const [artistResults, setArtistResults] = useState<ArtistResult[]>([])
   const [selectedArtist, setSelectedArtist] = useState<ArtistResult | null>(null)
   const debouncedArtistQuery = useDebounce(artistQuery, 300)
 
-  const [selectedGenres, setSelectedGenres] = useState<number[]>([])
+  const [selectedGenres, setSelectedGenres] = useState<number[]>(initialValues?.genreIds ?? [])
   const [pending, setPending] = useState(false)
 
   const releaseDropdownRef = useRef<HTMLDivElement>(null)
@@ -164,9 +178,21 @@ export default function WishlistForm({ formats, genres }: Props) {
               </div>
               <div>
                 <label className={labelClass}>Original release year</label>
-                <input name="newReleaseYear" type="number" min={1877} max={2200} required className={inputClass} />
+                <input
+                  name="newReleaseYear"
+                  type="number"
+                  min={1877}
+                  max={2200}
+                  required
+                  className={inputClass}
+                  defaultValue={initialValues?.originalReleaseYear ?? ''}
+                />
               </div>
             </div>
+
+            {initialValues?.coverImageUrl && (
+              <input type="hidden" name="newReleaseCoverImageUrl" value={initialValues.coverImageUrl} />
+            )}
 
             {/* Artist search */}
             <div ref={artistDropdownRef} className="relative">
@@ -272,7 +298,7 @@ export default function WishlistForm({ formats, genres }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Format</label>
-              <select name="formatId" required className={inputClass}>
+              <select name="formatId" required className={inputClass} defaultValue={initialValues?.formatId ?? ''}>
                 <option value="">Select…</option>
                 {formats.map((f) => (
                   <option key={f.formatId} value={f.formatId}>{f.name}</option>
@@ -282,7 +308,15 @@ export default function WishlistForm({ formats, genres }: Props) {
 
             <div>
               <label className={labelClass}>Number of discs</label>
-              <input name="discCount" type="number" min={1} max={50} defaultValue={1} required className={inputClass} />
+              <input
+                name="discCount"
+                type="number"
+                min={1}
+                max={50}
+                defaultValue={initialValues?.discCount ?? 1}
+                required
+                className={inputClass}
+              />
             </div>
 
             <div>
@@ -292,17 +326,22 @@ export default function WishlistForm({ formats, genres }: Props) {
 
             <div>
               <label className={labelClass}>Country</label>
-              <input name="country" className={inputClass} placeholder="e.g. UK" />
+              <input name="country" className={inputClass} placeholder="e.g. UK" defaultValue={initialValues?.country ?? ''} />
             </div>
 
             <div>
               <label className={labelClass}>Label</label>
-              <input name="label" className={inputClass} placeholder="e.g. Parlophone" />
+              <input name="label" className={inputClass} placeholder="e.g. Parlophone" defaultValue={initialValues?.label ?? ''} />
             </div>
 
             <div>
               <label className={labelClass}>Catalog number</label>
-              <input name="catalogNumber" className={inputClass} placeholder="e.g. PCS 7088" />
+              <input
+                name="catalogNumber"
+                className={inputClass}
+                placeholder="e.g. PCS 7088"
+                defaultValue={initialValues?.catalogNumber ?? ''}
+              />
             </div>
 
             <div>

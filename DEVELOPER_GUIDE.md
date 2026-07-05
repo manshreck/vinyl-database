@@ -840,6 +840,7 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 |---|---|---|
 | `DATABASE_URL` | Yes | Connection **template** (host/port/credentials) — its database name is swapped out at runtime to reach the Postgres maintenance DB or any tenant's database. See `lib/dbUrls.ts`. |
 | `CONTROL_DATABASE_URL` | Yes | Full connection string to the shared control-plane database (`vinyl_control`), which holds `users` and `sessions`. |
+| `DISCOGS_TOKEN` | No | Personal access token for the Discogs API, used by `lib/discogs.ts` for the "Search Discogs" feature (`/discogs`). Generate one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) — it's a single server-side credential shared by every user of this app, not a per-user login. Without it, `/discogs` shows a "not configured" error but the rest of the app is unaffected. |
 
 ---
 

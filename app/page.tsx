@@ -22,6 +22,11 @@ const cards = [
     title: 'Add to Wishlist',
     description: 'Track a pressing you’re hoping to pick up.',
   },
+  {
+    href: '/discogs',
+    title: 'Search Discogs',
+    description: 'Look up a release and add it to your collection or wishlist.',
+  },
 ]
 
 export default async function Home() {
@@ -35,7 +40,7 @@ export default async function Home() {
         </h1>
         <p className="mb-8 text-zinc-500 dark:text-zinc-400">What would you like to do?</p>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
             <Link
               key={card.href}

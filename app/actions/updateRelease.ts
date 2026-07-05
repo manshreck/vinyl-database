@@ -15,6 +15,7 @@ export async function updateRelease(
   const title = (formData.get('title') as string).trim()
   const originalReleaseYear = Number(formData.get('originalReleaseYear'))
   const notes = (formData.get('notes') as string).trim() || null
+  const coverImageUrl = (formData.get('coverImageUrl') as string).trim() || null
   const genreIds = formData.getAll('genreIds').map(Number).filter(Boolean)
 
   // Collect artist edits: name[artistId] and sortName[artistId]
@@ -24,7 +25,7 @@ export async function updateRelease(
     // Update the release itself
     await tx.release.update({
       where: { releaseId },
-      data: { title, originalReleaseYear, notes },
+      data: { title, originalReleaseYear, notes, coverImageUrl },
     })
 
     // Update each associated artist's name and sortName

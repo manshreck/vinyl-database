@@ -11,6 +11,7 @@ type Release = {
   title: string
   originalReleaseYear: number
   notes: string | null
+  coverImageUrl: string | null
   artists: Array<{ artist: Artist; artistOrder: number }>
   genres: Array<{ genre: Genre; genreOrder: number }>
 }
@@ -75,6 +76,16 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
             rows={2}
             className={inputClass}
             defaultValue={release.notes ?? ''}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Cover image URL</label>
+          <input
+            name="coverImageUrl"
+            className={inputClass}
+            placeholder="https://…"
+            defaultValue={release.coverImageUrl ?? ''}
           />
         </div>
       </section>

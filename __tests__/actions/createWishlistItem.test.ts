@@ -97,4 +97,33 @@ describe('createWishlistItem', () => {
     await createWishlistItem(fd)
     expect(mockRedirect).toHaveBeenCalledWith('/wishlist')
   })
+
+  it('passes newReleaseCoverImageUrl through to the release create', async () => {
+    const fd = makeFormData({
+      ...WISHLIST_FIELDS,
+      newReleaseTitle: 'Exodus',
+      newReleaseYear: '1977',
+      newArtistName: 'Bob Marley',
+      newReleaseCoverImageUrl: 'https://i.discogs.com/cover.jpg',
+    })
+    await createWishlistItem(fd)
+    expect(mockReleaseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ coverImageUrl: 'https://i.discogs.com/cover.jpg' }),
+      })
+    )
+  })
+
+  it('sets coverImageUrl to null when not provided', async () => {
+    const fd = makeFormData({
+      ...WISHLIST_FIELDS,
+      newReleaseTitle: 'Exodus',
+      newReleaseYear: '1977',
+      newArtistName: 'Bob Marley',
+    })
+    await createWishlistItem(fd)
+    expect(mockReleaseCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ coverImageUrl: null }) })
+    )
+  })
 })

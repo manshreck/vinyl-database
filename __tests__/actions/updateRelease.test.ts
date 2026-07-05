@@ -56,11 +56,12 @@ describe('updateRelease', () => {
     mockTransaction.mockImplementation(async (fn: (tx: typeof mockTx) => Promise<void>) => fn(mockTx))
   })
 
-  it('updates release title, year and notes inside a transaction', async () => {
+  it('updates release title, year, notes and cover image inside a transaction', async () => {
     const fd = makeFormData({
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: 'Classic',
+      coverImageUrl: 'https://i.discogs.com/cover.jpg',
       artistIds: ['10'],
       'name[10]': 'Miles Davis',
       'sortName[10]': 'Davis, Miles',
@@ -70,7 +71,12 @@ describe('updateRelease', () => {
 
     expect(mockReleaseUpdate).toHaveBeenCalledWith({
       where: { releaseId: 5 },
-      data: { title: 'Kind of Blue', originalReleaseYear: 1959, notes: 'Classic' },
+      data: {
+        title: 'Kind of Blue',
+        originalReleaseYear: 1959,
+        notes: 'Classic',
+        coverImageUrl: 'https://i.discogs.com/cover.jpg',
+      },
     })
   })
 
@@ -79,6 +85,7 @@ describe('updateRelease', () => {
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: [],
     })
 
@@ -89,11 +96,28 @@ describe('updateRelease', () => {
     )
   })
 
+  it('sets coverImageUrl to null when blank', async () => {
+    const fd = makeFormData({
+      title: 'Kind of Blue',
+      originalReleaseYear: '1959',
+      notes: '',
+      coverImageUrl: '',
+      artistIds: [],
+    })
+
+    await updateRelease(5, '/pressings', fd)
+
+    expect(mockReleaseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ coverImageUrl: null }) })
+    )
+  })
+
   it('updates each artist name and sortName', async () => {
     const fd = makeFormData({
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: ['10'],
       'name[10]': 'Miles Davis',
       'sortName[10]': 'Davis, Miles',
@@ -112,6 +136,7 @@ describe('updateRelease', () => {
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: ['10'],
       'name[10]': 'Miles Davis',
       'sortName[10]': '',
@@ -129,6 +154,7 @@ describe('updateRelease', () => {
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: [],
       genreIds: ['3', '7'],
     })
@@ -149,6 +175,7 @@ describe('updateRelease', () => {
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: [],
     })
 
@@ -163,6 +190,7 @@ describe('updateRelease', () => {
       title: 'Kind of Blue',
       originalReleaseYear: '1959',
       notes: '',
+      coverImageUrl: '',
       artistIds: [],
     })
 

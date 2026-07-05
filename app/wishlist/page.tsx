@@ -1,6 +1,7 @@
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
 import { artistSortKey } from '@/lib/artistSort'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default async function WishlistPage() {
@@ -85,15 +86,29 @@ export default async function WishlistPage() {
                     className="bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
-                      <Link
-                        href={`/wishlist/${item.wishlistItemId}`}
-                        className="underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
-                      >
-                        {item.release.title}
-                      </Link>
-                      <span className="ml-2 text-xs text-zinc-400">
-                        ({item.release.originalReleaseYear})
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {item.release.coverImageUrl && (
+                          <Image
+                            src={item.release.coverImageUrl}
+                            alt=""
+                            width={40}
+                            height={40}
+                            className="rounded object-cover flex-shrink-0"
+                            unoptimized
+                          />
+                        )}
+                        <div>
+                          <Link
+                            href={`/wishlist/${item.wishlistItemId}`}
+                            className="underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
+                          >
+                            {item.release.title}
+                          </Link>
+                          <span className="ml-2 text-xs text-zinc-400">
+                            ({item.release.originalReleaseYear})
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                       {item.release.artists.map((ra, i) => (

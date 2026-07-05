@@ -37,6 +37,7 @@ CREATE TABLE "releases" (
     "title" VARCHAR(500) NOT NULL,
     "original_release_year" SMALLINT NOT NULL,
     "notes" TEXT,
+    "cover_image_url" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
