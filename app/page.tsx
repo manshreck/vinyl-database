@@ -13,6 +13,11 @@ const cards = [
     description: 'Log a pressing you own into your collection.',
   },
   {
+    href: '/wishlist',
+    title: 'View Wishlist',
+    description: 'See the pressings you’re hoping to pick up.',
+  },
+  {
     href: '/wishlist/new',
     title: 'Add to Wishlist',
     description: 'Track a pressing you’re hoping to pick up.',
@@ -30,7 +35,7 @@ export default async function Home() {
         </h1>
         <p className="mb-8 text-zinc-500 dark:text-zinc-400">What would you like to do?</p>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
             <Link
               key={card.href}
