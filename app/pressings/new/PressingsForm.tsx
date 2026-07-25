@@ -34,6 +34,7 @@ type Genre = { genreId: number; name: string }
 export type PressingInitialValues = {
   title: string
   originalReleaseYear: number
+  pressingYear: number | null
   artistName: string
   genreIds: number[]
   formatId: number | null
@@ -354,7 +355,15 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
             <div>
               <label className={labelClass}>Pressing year</label>
-              <input name="pressingYear" type="number" min={1877} max={2200} className={inputClass} placeholder="e.g. 1972" />
+              <input
+                name="pressingYear"
+                type="number"
+                min={1877}
+                max={2200}
+                className={inputClass}
+                placeholder="e.g. 1972"
+                defaultValue={initialValues?.pressingYear ?? ''}
+              />
             </div>
 
             <div>

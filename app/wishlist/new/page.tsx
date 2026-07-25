@@ -31,6 +31,7 @@ export default async function NewWishlistItemPage({ searchParams }: { searchPara
       initialValues = {
         title: discogsValues.title,
         originalReleaseYear: discogsValues.originalReleaseYear,
+        pressingYear: discogsValues.pressingYear,
         artistName: discogsValues.artistName,
         genreIds: matchedGenreIds,
         formatId: matchedFormat?.formatId ?? null,

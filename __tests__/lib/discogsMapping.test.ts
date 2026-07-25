@@ -108,6 +108,7 @@ describe('buildDiscogsInitialValues', () => {
     expect(buildDiscogsInitialValues(release)).toEqual({
       title: 'Kind Of Blue',
       originalReleaseYear: 1959,
+      pressingYear: 2010,
       artistName: 'Miles Davis',
       genreNames: ['Jazz'],
       formatName: 'LP',

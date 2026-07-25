@@ -31,6 +31,7 @@ export default async function NewPressingPage({ searchParams }: { searchParams: 
       initialValues = {
         title: discogsValues.title,
         originalReleaseYear: discogsValues.originalReleaseYear,
+        pressingYear: discogsValues.pressingYear,
         artistName: discogsValues.artistName,
         genreIds: matchedGenreIds,
         formatId: matchedFormat?.formatId ?? null,

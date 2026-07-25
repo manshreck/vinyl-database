@@ -66,6 +66,7 @@ export function guessDiscCount(formats: Array<{ qty: string | null }>): number {
 export type DiscogsInitialValues = {
   title: string
   originalReleaseYear: number
+  pressingYear: number | null
   artistName: string
   genreNames: string[]
   formatName: string | null
@@ -82,6 +83,7 @@ export function buildDiscogsInitialValues(release: DiscogsReleaseDetail): Discog
   return {
     title: release.title,
     originalReleaseYear: release.originalReleaseYear,
+    pressingYear: release.pressingYear,
     artistName: release.artists[0] ?? '',
     genreNames: guessGenreNames(release.genres),
     formatName: guessFormatName(release.formats),
