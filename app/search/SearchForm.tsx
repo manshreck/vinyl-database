@@ -1,11 +1,12 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 export default function SearchForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const formRef = useRef<HTMLFormElement>(null)
 
   const [useRegex, setUseRegex] = useState(searchParams.get('regex') === '1')
 
@@ -25,6 +26,16 @@ export default function SearchForm() {
     router.push(`/search?${params.toString()}`)
   }
 
+  function handleSearchDiscogs() {
+    const data = new FormData(formRef.current ?? undefined)
+    const q = [data.get('artist'), data.get('title'), data.get('year')]
+      .map((v) => (typeof v === 'string' ? v.trim() : ''))
+      .filter(Boolean)
+      .join(' ')
+
+    router.push(`/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  }
+
   const titlePlaceholder = useRegex
     ? 'e.g. ^Kind of Blue$  or  blue|green'
     : 'e.g. Kind*  or  *Blue*'
@@ -34,7 +45,7 @@ export default function SearchForm() {
     : 'e.g. Miles*  or  *Davis*'
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       {/* Regex toggle */}
       <div className="flex items-center gap-2">
         <label className="relative inline-flex items-center cursor-pointer">
@@ -88,7 +99,7 @@ export default function SearchForm() {
           type="submit"
           className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
         >
-          Search
+          Search Collection
         </button>
         <a
           href="/search"
@@ -96,6 +107,13 @@ export default function SearchForm() {
         >
           Clear
         </a>
+        <button
+          type="button"
+          onClick={handleSearchDiscogs}
+          className="ml-auto rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+        >
+          Search Discogs
+        </button>
       </div>
     </form>
   )
