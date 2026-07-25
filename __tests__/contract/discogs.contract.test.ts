@@ -7,7 +7,7 @@
  * fake cannot detect its own drift, only a contract test against the real thing can.
  *
  * Hits the real network with the shared DISCOGS_TOKEN. Not part of `npm test` or the
- * default `npm run test:integration` run — see TESTING_PLAN.md §4. Run explicitly via
+ * default `npm run test:integration` run — see TESTING.md §4. Run explicitly via
  * `npm run test:contract` whenever lib/discogs.ts or lib/discogsMapping.ts changes,
  * and otherwise on a schedule once one exists.
  */

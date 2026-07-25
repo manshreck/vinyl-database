@@ -4,7 +4,7 @@
  * Contract test: proves fakePrismaClient agrees with the real generated Prisma
  * Client, for the operations the fake implements — see swe-test-doubles (a fake
  * cannot detect its own drift from the real thing; only a contract test can) and
- * TESTING_PLAN.md §1.2/§2.3.
+ * TESTING.md §1.2/§2.3.
  *
  * Runs the identical script of operations against the fake and against a real,
  * disposable scratch tenant database (a "proxy" — see swe-test-doubles), then

@@ -2,7 +2,7 @@
  * @jest-environment node
  *
  * Seam integration test: the generated Prisma Client ↔ a database built from
- * prisma/tenant-schema.sql. See TESTING_PLAN.md §2.3.
+ * prisma/tenant-schema.sql. See TESTING.md §2.3.
  *
  * schema.prisma (what the generated client expects) and tenant-schema.sql (what
  * actually provisions a tenant database, via provisionTenant.ts) are maintained by

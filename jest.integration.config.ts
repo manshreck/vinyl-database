@@ -5,7 +5,7 @@ const createJestConfig = nextJest({ dir: './' })
 
 // Layers 3+ (seam/system/contract) — hits a real local Postgres and, for the Discogs
 // contract test, the real network. Separate from jest.config.ts so `npm test` never
-// gains an external dependency. See TESTING_PLAN.md §4.
+// gains an external dependency. See TESTING.md §4.
 const config: Config = {
   testEnvironment: 'node',
   setupFiles: ['dotenv/config'],

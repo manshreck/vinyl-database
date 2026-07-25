@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  *
- * Seam integration test: controlDb.ts ↔ real Postgres. See TESTING_PLAN.md §2.3.
+ * Seam integration test: controlDb.ts ↔ real Postgres. See TESTING.md §2.3.
  *
  * controlDb.ts memoizes its Pool and bootstrap-SQL promise on globalThis (to survive
  * Next.js dev-mode hot reload) and reads CONTROL_DATABASE_URL at module-load time.

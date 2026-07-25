@@ -1,18 +1,18 @@
 /**
  * In-memory fake of the subset of PrismaClient this app actually calls — see
- * TESTING_PLAN.md §1.2 and swe-test-doubles. This is a fake (a reimplementation), not
+ * TESTING.md §1.2 and swe-test-doubles. This is a fake (a reimplementation), not
  * a proxy: it exists to consolidate the near-identical ad hoc `jest.fn()` mocks
  * duplicated across `__tests__/actions/*.test.ts` into one owner-maintained
  * implementation, raising unit-test fidelity (a real create-then-read instead of a
  * stub returning whatever was hardcoded). It does not stand in for a seam or system
  * integration test — see __tests__/contract/fakePrismaClient.contract.test.ts, which
- * proves it agrees with the real generated client, and TESTING_PLAN.md §2.3 for the
+ * proves it agrees with the real generated client, and TESTING.md §2.3 for the
  * seam tests that exercise the real database directly.
  *
- * Scope is deliberately exactly the operations the app makes today (see the survey
- * behind TESTING_PLAN.md Phase 2) — not a general Prisma reimplementation. Anything
- * outside that surface throws immediately rather than silently misbehaving, per the
- * "fakes should fail fast on unsupported paths" rule.
+ * Scope is deliberately exactly the operations the app makes today — not a general
+ * Prisma reimplementation. Anything outside that surface throws immediately rather
+ * than silently misbehaving, per the "fakes should fail fast on unsupported paths"
+ * rule.
  *
  * Not modeled: Prisma's Decimal type for purchasePrice/currentValue (the app only
  * ever calls Number() on them — plain numbers satisfy every consumer); real

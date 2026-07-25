@@ -3,7 +3,7 @@ import { uniqueTestEmail, TEST_PASSWORD, registerNewUser } from './support/testU
 
 // Journey: a user searches Discogs for a release, picks a result, and lands on "Add a
 // record" with the title/year/artist/cover image already filled in. Hits the real
-// Discogs API (see TESTING_PLAN.md §2.5) — the slowest and only network-dependent
+// Discogs API (see TESTING.md §2.5) — the slowest and only network-dependent
 // journey in this suite, kept to one test.
 test.describe('Search Discogs and prepopulate Add a record', () => {
   test('picking a Discogs result prefills the new-pressing form', async ({ page }) => {

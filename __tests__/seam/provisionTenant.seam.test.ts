@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  *
- * Seam integration test: provisionTenant.ts ↔ real Postgres. See TESTING_PLAN.md §2.3.
+ * Seam integration test: provisionTenant.ts ↔ real Postgres. See TESTING.md §2.3.
  *
  * Uses a real, disposable Postgres database (a "proxy" — see swe-test-doubles), not a
  * fake, because the exact things under test — does the DDL in tenant-schema.sql

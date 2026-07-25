@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { defineConfig, devices } from '@playwright/test'
 
-// Layer 5 (end-to-end / user journeys) — see TESTING_PLAN.md §2.5 and swe-e2e-testing.
+// Layer 5 (end-to-end / user journeys) — see TESTING.md §2.5 and swe-e2e-testing.
 // Needs a real local Postgres and (for e2e/discogs-search-prefill.spec.ts) a real
 // DISCOGS_TOKEN with network access. Runs serially against a single worker: specs
 // share the same Postgres instance and the same Discogs rate-limited token, so

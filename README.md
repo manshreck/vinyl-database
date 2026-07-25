@@ -170,7 +170,7 @@ npx playwright install chromium
 
 ## Running the Tests
 
-This project has four tiers of tests, matched to how much they need to be true to run (see `TESTING_PLAN.md` for the full breakdown):
+This project has four tiers of tests, matched to how much they need to be true to run (see `TESTING.md` for the full breakdown):
 
 Run the fast suite (unit, component — no external dependencies, safe to run constantly):
 

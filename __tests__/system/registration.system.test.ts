@@ -3,7 +3,7 @@
  *
  * System integration test: registerUser assembling real controlDb.ts + real
  * provisionTenant.ts + a real scratch control database + a real tenant database. See
- * TESTING_PLAN.md §2.4.
+ * TESTING.md §2.4.
  *
  * Justified by two named gaps from swe-system-integration-testing that no seam test
  * covers pairwise: **Configuration** (does registerUser's own orchestration of two
