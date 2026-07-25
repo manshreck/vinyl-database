@@ -158,19 +158,31 @@ land before any of the infrastructure work in §1.
 - **Both contract tests pass**: `test:contract` (Discogs, live network) and the
   `fakePrismaClient` contract test (live local Postgres, via `test:integration`).
 
-### 2.3 Seam integration tests (layer 3 — remaining)
+### 2.3 Seam integration tests (layer 3) — ✅ done
 
 Each test names exactly two real components and the one boundary between them, per
-the seam-testing skill. The two contract tests are done (§2.2); the three Postgres
-seam tests below are next:
+the seam-testing skill.
 
 | Test | Boundary | Covers |
 |---|---|---|
-| `seam/provisionTenant.seam.test.ts` | `provisionTenant.ts` ↔ real Postgres | `createTenantDatabase` produces a DB with the expected tables and seeded formats/genres; the name regex rejects invalid input; `dropTenantDatabase` removes it; a seeding failure triggers the internal rollback (the DB it just created gets dropped) |
-| `seam/controlDb.seam.test.ts` | `controlDb.ts` ↔ real control DB | bootstrap SQL is idempotent against a fresh DB; `createUser`/`findUserByEmail` round-trip; the unique-email constraint surfaces a real Postgres error; session and admin-session create/find/delete round-trip |
-| `seam/tenantPrisma.seam.test.ts` | generated Prisma Client ↔ a DB built from `tenant-schema.sql` | a release/artist/pressing created through the *real* generated client can be read back — this is the schema-drift gap: `schema.prisma` and `tenant-schema.sql` are maintained by hand today and nothing currently notices if they disagree. **Substantially de-risked already**: `fakePrismaClient.contract.test.ts` already exercises exactly this path (real client, real scratch DB, real schema) as a side effect of proving the fake — this seam test mainly needs to be split out and framed around the drift gap specifically, not built from scratch. |
+| `seam/provisionTenant.seam.test.ts` | `provisionTenant.ts` ↔ real Postgres | `createTenantDatabase` produces a DB with the expected tables and seeded formats/genres; the name regex rejects invalid input without touching Postgres; `dropTenantDatabase` removes it; a seeding failure (forced via a targeted `Client.prototype.query` spy on the `INSERT INTO genres` call — a legitimate narrow stub for a hard-to-trigger error path, per swe-test-doubles) triggers the internal rollback, confirmed by checking `pg_database` directly |
+| `seam/controlDb.seam.test.ts` | `controlDb.ts` ↔ real Postgres | bootstrap SQL is idempotent when re-applied to an already-provisioned database; `createUser`/`findUserByEmail` round-trip; the unique-email constraint surfaces a real Postgres error; session and admin-session create/find/delete round-trip. Each test gets its own scratch database and a fresh module load (`controlDb.ts` memoizes its `Pool` on `globalThis` to survive Next.js dev-mode hot reload, so the test file resets both the module registry and that `globalThis` cache between loads — see the file's doc comment) |
+| `seam/tenantPrisma.seam.test.ts` | generated Prisma Client ↔ a DB built from `tenant-schema.sql` | a release/artist/pressing created through the *real* generated client is read back unchanged — the schema-drift gap: `schema.prisma` and `tenant-schema.sql` are maintained by hand and nothing else notices if they disagree. Deliberately narrower than `fakePrismaClient.contract.test.ts` (which exercises the same path as one half of a larger fake-vs-real comparison) — split out so the drift gap keeps its own owner even if the fake is ever removed |
 | ~~`contract/discogs.contract.test.ts`~~ | our fixtures ↔ real Discogs API | ✅ done — see §2.2 |
 | ~~`contract/fakePrismaClient.contract.test.ts`~~ | fake Prisma client ↔ real Prisma client | ✅ done — see §2.2 |
+
+**Result**: 10 new seam tests, all green against real local Postgres via
+`npm run test:integration`. Fixed a bug caught during this work, not before it: the
+first version of `controlDb.seam.test.ts` called `pool.end()` on an already-ended pool
+across test boundaries because `afterEach` closed the cached pool but never cleared
+the `globalThis` reference — the next test's setup then tried to end it again. Fixed
+by consolidating close-and-clear into one `resetControlDbGlobals()` helper used by
+both `loadControlDb()` and `afterEach`. Also caught and fixed a pre-existing gap
+unrelated to Phase 3: `PressingsForm.tsx`/`WishlistForm.tsx` had picked up a real
+`useRouter()` call (for the "Search for Release on Discogs" feature) with no
+component-test coverage for it and no `next/navigation` mock, silently breaking
+`npm test` — fixed by adding the same `useRouter` mock `SearchForm.test.tsx` already
+used, plus new tests for the Discogs-search-box behavior.
 
 ### 2.4 System integration test (layer 4 — new)
 
@@ -227,7 +239,7 @@ __tests__/
   api/            # unchanged — layer 1
   components/     # unchanged + new files — layer 2
   lib/            # unchanged + new files — layer 1
-  seam/           # new — layer 3 (not yet built)
+  seam/           # ✅ built — layer 3
   system/         # new — layer 4 (not yet built)
   contract/       # ✅ built — fake-vs-real checks (run alongside layer 3)
 
@@ -303,12 +315,11 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
    API. Pulled `scratchDatabase.ts` forward from Phase 3 into this phase, since
    `fakePrismaClient`'s own contract test needed a real proxy database to compare
    against — the original phase split didn't account for that dependency.
-3. **Seam integration tests** (§2.3) — next. `provisionTenant.seam.test.ts` and
-   `controlDb.seam.test.ts` remain to be written; `tenantPrisma.seam.test.ts` is
-   mostly already covered as a side effect of `fakePrismaClient.contract.test.ts` and
-   should be split out rather than rebuilt.
-4. **System integration test** (§2.4) — the registration-flow test, once the seam
-   layer it's built from already exists and is green.
+3. **Seam integration tests** (§2.3) — ✅ done. `provisionTenant.seam.test.ts`,
+   `controlDb.seam.test.ts`, and `tenantPrisma.seam.test.ts` all green against real
+   local Postgres.
+4. **System integration test** (§2.4) — next. The registration-flow test, now that the
+   seam layer it's built from exists and is green.
 5. **End-to-end** (§2.5) — add Playwright, then the three journeys, last — the most
    expensive layer, and the one that most benefits from everything below it already
    being solid.

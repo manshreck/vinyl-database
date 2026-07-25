@@ -4,9 +4,14 @@ import userEvent from '@testing-library/user-event'
 import PressingsForm from '@/app/pressings/new/PressingsForm'
 
 const mockCreatePressing = jest.fn()
+const mockPush = jest.fn()
 
 jest.mock('@/app/actions/createPressing', () => ({
   createPressing: (...args: unknown[]) => mockCreatePressing(...args),
+}))
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
 }))
 
 describe('PressingsForm', () => {
@@ -47,6 +52,37 @@ describe('PressingsForm', () => {
     await user.click(screen.getByText('Save pressing'))
 
     expect(mockCreatePressing).toHaveBeenCalledTimes(1)
+  })
+
+  describe('Search for Release on Discogs', () => {
+    it('navigates to /discogs with the entered query when Search is clicked', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus Bob Marley')
+      await user.click(screen.getByText('Search'))
+
+      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus Bob Marley'))
+    })
+
+    it('navigates to /discogs with no query when the box is left blank', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.click(screen.getByText('Search'))
+
+      expect(mockPush).toHaveBeenCalledWith('/discogs')
+    })
+
+    it('submits on Enter without triggering local release creation', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus{Enter}')
+
+      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus'))
+      expect(mockCreatePressing).not.toHaveBeenCalled()
+    })
   })
 
   // Fields never auto-populated from Discogs (Record condition, Sleeve condition,
