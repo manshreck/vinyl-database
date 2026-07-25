@@ -4,11 +4,13 @@
 import { updatePressing } from '@/app/actions/updatePressing'
 
 const mockUpdate = jest.fn()
+const mockReleaseUpdate = jest.fn()
 const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
   getTenantPrisma: jest.fn().mockResolvedValue({
     pressing: { update: (...args: unknown[]) => mockUpdate(...args) },
+    release: { update: (...args: unknown[]) => mockReleaseUpdate(...args) },
   }),
 }))
 
@@ -42,12 +44,14 @@ const BASE_FIELDS = {
   purchasePrice: '',
   purchaseDate: '',
   currentValue: '',
+  coverImageUrl: '',
 }
 
 describe('updatePressing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUpdate.mockResolvedValue({})
+    mockUpdate.mockResolvedValue({ releaseId: 42 })
+    mockReleaseUpdate.mockResolvedValue({})
   })
 
   it('calls prisma.pressing.update with the correct id', async () => {
@@ -127,5 +131,18 @@ describe('updatePressing', () => {
   it('redirects to /pressings after update', async () => {
     await updatePressing(7, makeFormData(BASE_FIELDS))
     expect(mockRedirect).toHaveBeenCalledWith('/pressings')
+  })
+
+  it('does not update the release when coverImageUrl is blank', async () => {
+    await updatePressing(7, makeFormData(BASE_FIELDS))
+    expect(mockReleaseUpdate).not.toHaveBeenCalled()
+  })
+
+  it('updates the release cover image when coverImageUrl is provided', async () => {
+    await updatePressing(7, makeFormData({ ...BASE_FIELDS, coverImageUrl: 'https://example.com/cover.jpg' }))
+    expect(mockReleaseUpdate).toHaveBeenCalledWith({
+      where: { releaseId: 42 },
+      data: { coverImageUrl: 'https://example.com/cover.jpg' },
+    })
   })
 })

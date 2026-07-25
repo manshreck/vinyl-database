@@ -15,8 +15,9 @@ export async function updatePressing(id: number, formData: FormData) {
   const purchaseDateRaw = formData.get('purchaseDate') as string
   const currentValueRaw = formData.get('currentValue') as string
   const vinylColorRaw = formData.get('vinylColor') as string
+  const coverImageUrl = ((formData.get('coverImageUrl') as string) ?? '').trim() || null
 
-  await prisma.pressing.update({
+  const pressing = await prisma.pressing.update({
     where: { pressingId: id },
     data: {
       formatId: Number(formData.get('formatId')),
@@ -34,6 +35,13 @@ export async function updatePressing(id: number, formData: FormData) {
       currentValue: currentValueRaw ? Number(currentValueRaw) : null,
     },
   })
+
+  if (coverImageUrl) {
+    await prisma.release.update({
+      where: { releaseId: pressing.releaseId },
+      data: { coverImageUrl },
+    })
+  }
 
   redirect('/pressings')
 }
