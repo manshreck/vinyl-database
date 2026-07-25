@@ -1,0 +1,343 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 208,
+    "per_page": 5,
+    "items": 1036,
+    "urls": {
+      "last": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=ZXtgzbvTyVcWvTUIqIJFTGZjCZWjDgPxoSPvenfX&page=208",
+      "next": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=ZXtgzbvTyVcWvTUIqIJFTGZjCZWjDgPxoSPvenfX&page=2"
+    }
+  },
+  "results": [
+    {
+      "country": "France",
+      "year": "2010",
+      "format": [
+        "Vinyl",
+        "LP",
+        "Album",
+        "Reissue",
+        "Stereo"
+      ],
+      "label": [
+        "Columbia",
+        "Vinyles De Jazz",
+        "Sony Music Entertainment",
+        "Editorial Planeta DeAgostini, S.A.",
+        "Planeta DeAgostini",
+        "Sony Music Entertainment",
+        "Record Industry"
+      ],
+      "type": "release",
+      "genre": [
+        "Jazz"
+      ],
+      "style": [
+        "Modal"
+      ],
+      "id": 2772432,
+      "barcode": [
+        "XSM 47326",
+        "XSM 47327",
+        "85700 1A 01-MILES DAVIS A",
+        "85700 1B 01-MILES DAVIS A",
+        "NA-13-2011"
+      ],
+      "user_data": {
+        "in_wantlist": false,
+        "in_collection": false
+      },
+      "master_id": 5460,
+      "master_url": "https://api.discogs.com/masters/5460",
+      "uri": "/release/2772432-Miles-Davis-Kind-Of-Blue",
+      "catno": "CS 8163",
+      "title": "Miles Davis - Kind Of Blue",
+      "thumb": "https://i.discogs.com/QP6-9bENVcMw1-tYIu-2GaG0YgFuf7otB5WUmaMJm9w/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI3NzI0/MzItMTMwMjg0NjQ4/OC5qcGVn.jpeg",
+      "cover_image": "https://i.discogs.com/HocOgI_8yE8Ggm3X0gCbXOy0IjNiP_rNr2a24dizxz4/rs:fit/g:sm/q:90/h:500/w:500/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI3NzI0/MzItMTMwMjg0NjQ4/OC5qcGVn.jpeg",
+      "resource_url": "https://api.discogs.com/releases/2772432",
+      "community": {
+        "want": 1775,
+        "have": 3286
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "180 gram",
+          "descriptions": [
+            "LP",
+            "Album",
+            "Reissue",
+            "Stereo"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "US",
+      "year": "2010",
+      "format": [
+        "Vinyl",
+        "LP",
+        "Album",
+        "Reissue",
+        "Stereo"
+      ],
+      "label": [
+        "Columbia",
+        "Legacy",
+        "Sony Music Entertainment",
+        "Sony Music Entertainment",
+        "Columbia Records",
+        "Cohearent Audio",
+        "Record Technology Incorporated"
+      ],
+      "type": "release",
+      "genre": [
+        "Jazz"
+      ],
+      "style": [
+        "Modal",
+        "Cool Jazz"
+      ],
+      "id": 2825456,
+      "barcode": [
+        "886976805715",
+        "88697680571-A KPG&MZ@CA 19711.1(3)...",
+        "88697680571-B KPG&MZ@CA 19711.2(3)..."
+      ],
+      "user_data": {
+        "in_wantlist": false,
+        "in_collection": false
+      },
+      "master_id": 5460,
+      "master_url": "https://api.discogs.com/masters/5460",
+      "uri": "/release/2825456-Miles-Davis-Kind-Of-Blue",
+      "catno": "88697680571",
+      "title": "Miles Davis - Kind Of Blue",
+      "thumb": "https://i.discogs.com/s-YATK9uK15skpOsnkP391Gxe2zBsNG_feNBrxjN3Ww/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+      "cover_image": "https://i.discogs.com/uctih8PnXxwdSrPfzXP-ZwRTxxhVs_8G2DgDhqQBJaY/rs:fit/g:sm/q:90/h:608/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+      "resource_url": "https://api.discogs.com/releases/2825456",
+      "community": {
+        "want": 6931,
+        "have": 24875
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "180 Gram",
+          "descriptions": [
+            "LP",
+            "Album",
+            "Reissue",
+            "Stereo"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "Europe",
+      "year": "2015",
+      "format": [
+        "Vinyl",
+        "LP",
+        "Album",
+        "Reissue",
+        "Repress",
+        "Stereo"
+      ],
+      "label": [
+        "Columbia",
+        "Legacy",
+        "Sony Music",
+        "Legacy Vinyl",
+        "We Are Vinyl",
+        "Sony Music Entertainment International Services GmbH",
+        "Columbia Records",
+        "Sony Music Entertainment",
+        "Record Industry",
+        "Record Industry"
+      ],
+      "type": "release",
+      "genre": [
+        "Jazz"
+      ],
+      "style": [
+        "Modal"
+      ],
+      "id": 7606066,
+      "barcode": [
+        "8 88751 11921 5",
+        "888751119215",
+        "BIEM/GEMA",
+        "LC 00162",
+        "13549 1A 88875111921 99406 1A",
+        "13549 1B 88875111921 99406 1B"
+      ],
+      "user_data": {
+        "in_wantlist": false,
+        "in_collection": false
+      },
+      "master_id": 5460,
+      "master_url": "https://api.discogs.com/masters/5460",
+      "uri": "/release/7606066-Miles-Davis-Kind-Of-Blue",
+      "catno": "88875111921",
+      "title": "Miles Davis - Kind Of Blue",
+      "thumb": "https://i.discogs.com/qtaNJ--9eURswMibCufWL04p1eTtJKRnjLNtepcXTTM/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTc2MDYw/NjYtMTQ0NTAxMDM0/MC00NjgzLmpwZWc.jpeg",
+      "cover_image": "https://i.discogs.com/rIqw52XRmoN7qVrcFkcBifvzfZBNFTV9ag-8fyPAd5U/rs:fit/g:sm/q:90/h:601/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTc2MDYw/NjYtMTQ0NTAxMDM0/MC00NjgzLmpwZWc.jpeg",
+      "resource_url": "https://api.discogs.com/releases/7606066",
+      "community": {
+        "want": 2868,
+        "have": 22119
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "180 Gram",
+          "descriptions": [
+            "LP",
+            "Album",
+            "Reissue",
+            "Repress",
+            "Stereo"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "Spain",
+      "year": "2010",
+      "format": [
+        "Vinyl",
+        "LP",
+        "Album",
+        "Reissue"
+      ],
+      "label": [
+        "Columbia",
+        "Planeta DeAgostini",
+        "Sony Music Entertainment",
+        "Sony Music Entertainment",
+        "Vinilos Miticos del Jazz",
+        "Classic Records, Inc.",
+        "Classic Records, Inc."
+      ],
+      "type": "release",
+      "genre": [
+        "Jazz"
+      ],
+      "style": [
+        "Modal"
+      ],
+      "id": 2288434,
+      "barcode": [
+        "XSM 47326",
+        "XSM 47327",
+        "85700 1A 01-MILES DAVIS",
+        "85700 1B 01-MILES DAVIS",
+        "NA-32-2009"
+      ],
+      "user_data": {
+        "in_wantlist": false,
+        "in_collection": false
+      },
+      "master_id": 5460,
+      "master_url": "https://api.discogs.com/masters/5460",
+      "uri": "/release/2288434-Miles-Davis-Kind-Of-Blue",
+      "catno": "CS 8163",
+      "title": "Miles Davis - Kind Of Blue",
+      "thumb": "https://i.discogs.com/2WUmz3NAJD883UF9SMOvxMuiarM0GOsURX2TWx1VFlA/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTIyODg0/MzQtMTU2MzQ0ODUz/Ny03MDI1LmpwZWc.jpeg",
+      "cover_image": "https://i.discogs.com/tBWsbZT8BPxo8TqXjL10i7RTpg_jdDU7BvG8G2WMV9k/rs:fit/g:sm/q:90/h:594/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTIyODg0/MzQtMTU2MzQ0ODUz/Ny03MDI1LmpwZWc.jpeg",
+      "resource_url": "https://api.discogs.com/releases/2288434",
+      "community": {
+        "want": 1347,
+        "have": 1780
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "descriptions": [
+            "LP",
+            "Album",
+            "Reissue"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "Japan",
+      "year": "2016",
+      "format": [
+        "Vinyl",
+        "LP",
+        "Album",
+        "Reissue",
+        "Stereo"
+      ],
+      "label": [
+        "Columbia",
+        "DeAgostini",
+        "Sony Music Entertainment UK Limited",
+        "De Agostini Deutschland GmbH",
+        "De Agostini UK Ltd",
+        "Sony Music Entertainment",
+        "Sony Music Entertainment",
+        "Sony Music Special Products",
+        "Jazz LP Record Collection"
+      ],
+      "type": "release",
+      "genre": [
+        "Jazz"
+      ],
+      "style": [
+        "Modal"
+      ],
+      "id": 13884751,
+      "barcode": [
+        "MPO LPJ-KINDOFBLUE A",
+        "MPO LPJ-KINDOFBLUE B",
+        "XSM 47326",
+        "XSM 47327",
+        "SIAE"
+      ],
+      "user_data": {
+        "in_wantlist": false,
+        "in_collection": false
+      },
+      "master_id": 5460,
+      "master_url": "https://api.discogs.com/masters/5460",
+      "uri": "/release/13884751-Miles-Davis-Kind-Of-Blue",
+      "catno": "CS 8163",
+      "title": "Miles Davis - Kind Of Blue",
+      "thumb": "https://i.discogs.com/dQbotV-ki7vYLcZ5JI05QUg114yvhGBvRRHPd-GhNVw/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTEzODg0/NzUxLTE1NjMyOTE1/MjUtODU0NC5qcGVn.jpeg",
+      "cover_image": "https://i.discogs.com/FDOJcV96x_amsPaRYYdZwoAR0nSoeuaODRqMDf8MJxo/rs:fit/g:sm/q:90/h:607/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTEzODg0/NzUxLTE1NjMyOTE1/MjUtODU0NC5qcGVn.jpeg",
+      "resource_url": "https://api.discogs.com/releases/13884751",
+      "community": {
+        "want": 1056,
+        "have": 927
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "180 Gram",
+          "descriptions": [
+            "LP",
+            "Album",
+            "Reissue",
+            "Stereo"
+          ]
+        }
+      ]
+    }
+  ]
+}

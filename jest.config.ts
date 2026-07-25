@@ -10,6 +10,9 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: ['<rootDir>/__tests__/**/*.test.{ts,tsx}'],
+  // Layers 3+ (seam/system/contract) live under jest.integration.config.ts instead —
+  // they need a real local Postgres and/or the real network. See TESTING_PLAN.md §4.
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/__tests__/(seam|system|contract)/'],
 }
 
 export default createJestConfig(config)

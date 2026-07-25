@@ -129,28 +129,48 @@ land before any of the infrastructure work in §1.
 
 **Result:** 205 tests across 30 files (up from 166/25), `tsc` and `next build` clean.
 
-### 2.2 Test-double infrastructure (§1 above)
+### 2.2 Test-double infrastructure (§1 above) — ✅ done
 
-- `test-support/fakes/fakePrismaClient.ts`
-- `test-support/fakes/discogsServer.ts` + `test-support/fakes/fixtures/*.json`
-- `test-support/db/scratchDatabase.ts` — `createScratchDatabase()` /
-  `dropScratchDatabase(name)` helpers wrapping `provisionTenant.ts`'s own
-  `generateDatabaseName`-style pattern, used by seam/system tests below. Database
-  names get a `vinyl_test_` prefix (distinct from `vinyl_user_`) so a crashed run's
-  leftovers are trivially identifiable and safe to sweep.
+- `test-support/fakes/fakePrismaClient.ts` — covers the exact operations surveyed from
+  every real call site in `app/`/`lib/` (not a general Prisma reimplementation): CRUD
+  on `artist`/`release`/`pressing`/`wishlistItem`, `format`/`genre` lookups,
+  `releaseGenre.deleteMany`/`createMany`, `$transaction` (best-effort snapshot/restore
+  atomicity), and the specific `where`/`include`/`orderBy` shapes actually used.
+  Anything outside that surface throws immediately rather than guessing — including a
+  guard that fails fast on `artists: true`/`genres: true` (bare boolean), a shape the
+  app never uses and which real Prisma treats differently than the nested
+  `{ include: { artist: true }, orderBy }` form every call site actually uses. That
+  guard exists *because* the fake's own contract test caught the fake silently
+  ignoring the distinction on the first run — see below.
+- `test-support/fakes/discogsServer.ts` + `test-support/fakes/fixtures/*.json` — MSW
+  handlers over real captured responses (`search-kind-of-blue.json`,
+  `release-2825456.json`, `master-5460.json`); unrecognized ids 404 rather than
+  silently returning nothing.
+- `test-support/db/scratchDatabase.ts` — `createScratchDatabase()`/`dropScratchDatabase()`/
+  `applyTenantSchema()`/`withScratchTenantDatabase()` (a real generated `PrismaClient`
+  via the exact same adapter construction `lib/prisma.ts` uses in production, pointed
+  at a scratch DB). Names get a `vinyl_test_` prefix, validated by a regex before any
+  create/drop, so a crashed run's leftovers are identifiable and nothing but a scratch
+  database can ever be dropped. Smoke-tested directly against local Postgres
+  (create → apply schema → real Prisma query → drop → confirmed gone).
+- `jest.integration.config.ts` + `npm run test:integration` / `npm run test:contract` —
+  see §4.
+- **Both contract tests pass**: `test:contract` (Discogs, live network) and the
+  `fakePrismaClient` contract test (live local Postgres, via `test:integration`).
 
-### 2.3 Seam integration tests (layer 3 — new)
+### 2.3 Seam integration tests (layer 3 — remaining)
 
 Each test names exactly two real components and the one boundary between them, per
-the seam-testing skill.
+the seam-testing skill. The two contract tests are done (§2.2); the three Postgres
+seam tests below are next:
 
 | Test | Boundary | Covers |
 |---|---|---|
 | `seam/provisionTenant.seam.test.ts` | `provisionTenant.ts` ↔ real Postgres | `createTenantDatabase` produces a DB with the expected tables and seeded formats/genres; the name regex rejects invalid input; `dropTenantDatabase` removes it; a seeding failure triggers the internal rollback (the DB it just created gets dropped) |
 | `seam/controlDb.seam.test.ts` | `controlDb.ts` ↔ real control DB | bootstrap SQL is idempotent against a fresh DB; `createUser`/`findUserByEmail` round-trip; the unique-email constraint surfaces a real Postgres error; session and admin-session create/find/delete round-trip |
-| `seam/tenantPrisma.seam.test.ts` | generated Prisma Client ↔ a DB built from `tenant-schema.sql` | a release/artist/pressing created through the *real* generated client can be read back — this is the schema-drift gap: `schema.prisma` and `tenant-schema.sql` are maintained by hand today and nothing currently notices if they disagree |
-| `contract/discogs.contract.test.ts` | our fixtures ↔ real Discogs API | fixture responses still match Discogs' real shape (see §1.1) |
-| `contract/fakePrismaClient.contract.test.ts` | fake Prisma client ↔ real Prisma client | the fake agrees with reality for the operations it implements (see §1.2) |
+| `seam/tenantPrisma.seam.test.ts` | generated Prisma Client ↔ a DB built from `tenant-schema.sql` | a release/artist/pressing created through the *real* generated client can be read back — this is the schema-drift gap: `schema.prisma` and `tenant-schema.sql` are maintained by hand today and nothing currently notices if they disagree. **Substantially de-risked already**: `fakePrismaClient.contract.test.ts` already exercises exactly this path (real client, real scratch DB, real schema) as a side effect of proving the fake — this seam test mainly needs to be split out and framed around the drift gap specifically, not built from scratch. |
+| ~~`contract/discogs.contract.test.ts`~~ | our fixtures ↔ real Discogs API | ✅ done — see §2.2 |
+| ~~`contract/fakePrismaClient.contract.test.ts`~~ | fake Prisma client ↔ real Prisma client | ✅ done — see §2.2 |
 
 ### 2.4 System integration test (layer 4 — new)
 
@@ -191,13 +211,14 @@ expensive layer — see §4 for how they're kept from blocking normal developmen
 ## 3. Directory layout
 
 ```
-test-support/
+test-support/                       # ✅ built
   fakes/
     fakePrismaClient.ts
     discogsServer.ts
     fixtures/
       search-kind-of-blue.json
-      release-11664327.json
+      release-2825456.json
+      master-5460.json
   db/
     scratchDatabase.ts
 
@@ -206,11 +227,11 @@ __tests__/
   api/            # unchanged — layer 1
   components/     # unchanged + new files — layer 2
   lib/            # unchanged + new files — layer 1
-  seam/           # new — layer 3
-  system/         # new — layer 4
-  contract/       # new — fake-vs-real checks (run alongside layer 3)
+  seam/           # new — layer 3 (not yet built)
+  system/         # new — layer 4 (not yet built)
+  contract/       # ✅ built — fake-vs-real checks (run alongside layer 3)
 
-e2e/              # new — layer 5, outside Jest entirely
+e2e/              # new — layer 5, outside Jest entirely (not yet built)
   playwright.config.ts
   *.spec.ts
 ```
@@ -275,11 +296,17 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
 
 ## 6. Rollout order
 
-1. **Layer 1–2 gap-filling** (§2.1) — no new infrastructure, immediate value.
-2. **Build the fakes** (§1, §2.2) — `fakePrismaClient.ts` and the MSW Discogs server,
-   plus their contract tests.
-3. **Seam integration tests** (§2.3) — `scratchDatabase.ts` helper, then the three
-   Postgres seam tests and the Discogs contract test.
+1. **Layer 1–2 gap-filling** (§2.1) — ✅ done. No new infrastructure, immediate value.
+2. **Build the fakes** (§1, §2.2) — ✅ done. `fakePrismaClient.ts`, `scratchDatabase.ts`,
+   the MSW Discogs server, `jest.integration.config.ts` + npm scripts, and both
+   contract tests, verified green against real local Postgres and the real Discogs
+   API. Pulled `scratchDatabase.ts` forward from Phase 3 into this phase, since
+   `fakePrismaClient`'s own contract test needed a real proxy database to compare
+   against — the original phase split didn't account for that dependency.
+3. **Seam integration tests** (§2.3) — next. `provisionTenant.seam.test.ts` and
+   `controlDb.seam.test.ts` remain to be written; `tenantPrisma.seam.test.ts` is
+   mostly already covered as a side effect of `fakePrismaClient.contract.test.ts` and
+   should be split out rather than rebuilt.
 4. **System integration test** (§2.4) — the registration-flow test, once the seam
    layer it's built from already exists and is green.
 5. **End-to-end** (§2.5) — add Playwright, then the three journeys, last — the most

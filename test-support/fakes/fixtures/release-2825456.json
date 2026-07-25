@@ -1,0 +1,481 @@
+{
+  "id": 2825456,
+  "status": "Accepted",
+  "year": 2010,
+  "resource_url": "https://api.discogs.com/releases/2825456",
+  "uri": "https://www.discogs.com/release/2825456-Miles-Davis-Kind-Of-Blue",
+  "artists": [
+    {
+      "name": "Miles Davis",
+      "anv": "",
+      "join": "",
+      "role": "",
+      "tracks": "",
+      "id": 23755,
+      "resource_url": "https://api.discogs.com/artists/23755",
+      "thumbnail_url": "https://i.discogs.com/X8TVl636Ty-mtOFEqOEmNiOdThTSxYT7eO-gfb0wvgg/rs:fit/g:sm/q:90/h:600/w:450/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9BLTIzNzU1/LTE3NjI4NjQzNDkt/MjU4NC5qcGVn.jpeg"
+    }
+  ],
+  "artists_sort": "Miles Davis",
+  "labels": [
+    {
+      "name": "Columbia",
+      "catno": "88697680571",
+      "entity_type": "1",
+      "entity_type_name": "Label",
+      "id": 1866,
+      "resource_url": "https://api.discogs.com/labels/1866",
+      "thumbnail_url": "https://i.discogs.com/JuO51-lZvasOtw8-yLUjsen-4O17uPH1A9SILCO-lG4/rs:fit/g:sm/q:90/h:300/w:299/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTE4NjYt/MTIzMzE5MzU1Ny5q/cGVn.jpeg"
+    },
+    {
+      "name": "Legacy",
+      "catno": "88697680571",
+      "entity_type": "1",
+      "entity_type_name": "Label",
+      "id": 15491,
+      "resource_url": "https://api.discogs.com/labels/15491",
+      "thumbnail_url": "https://i.discogs.com/jk2im_GXsDlf_1qNdX0KOoZUX6ivAIvgJH0TEBVW7ck/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTE1NDkx/LTE0OTg4MzQ3MDgt/NzQwOS5wbmc.jpeg"
+    }
+  ],
+  "series": [],
+  "companies": [
+    {
+      "name": "Sony Music Entertainment",
+      "catno": "",
+      "entity_type": "13",
+      "entity_type_name": "Phonographic Copyright (p)",
+      "id": 29073,
+      "resource_url": "https://api.discogs.com/labels/29073",
+      "thumbnail_url": "https://i.discogs.com/brqxJ0_7Bid9TdPXvDixDcKsKR49S1Tu2CJbq1H6qsI/rs:fit/g:sm/q:90/h:43/w:519/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTI5MDcz/LTE3NTY5MTIzMzYt/MTIwNS5wbmc.jpeg"
+    },
+    {
+      "name": "Sony Music Entertainment",
+      "catno": "",
+      "entity_type": "14",
+      "entity_type_name": "Copyright (c)",
+      "id": 29073,
+      "resource_url": "https://api.discogs.com/labels/29073",
+      "thumbnail_url": "https://i.discogs.com/brqxJ0_7Bid9TdPXvDixDcKsKR49S1Tu2CJbq1H6qsI/rs:fit/g:sm/q:90/h:43/w:519/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTI5MDcz/LTE3NTY5MTIzMzYt/MTIwNS5wbmc.jpeg"
+    },
+    {
+      "name": "Columbia Records",
+      "catno": "",
+      "entity_type": "9",
+      "entity_type_name": "Distributed By",
+      "id": 93330,
+      "resource_url": "https://api.discogs.com/labels/93330",
+      "thumbnail_url": "https://i.discogs.com/Fc3xZhx0_ME57o2yl1RIZGPAFJ9ObzPwoRiCQdQyd5g/rs:fit/g:sm/q:90/h:117/w:328/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTkzMzMw/LTE1MjY0ODU4MTgt/Mzk2Mi5qcGVn.jpeg"
+    },
+    {
+      "name": "Cohearent Audio",
+      "catno": "",
+      "entity_type": "29",
+      "entity_type_name": "Mastered At",
+      "id": 304129,
+      "resource_url": "https://api.discogs.com/labels/304129",
+      "thumbnail_url": "https://i.discogs.com/H8xY-vGU9MTMRVPEF9XuqiPNCbc8PEKGwBIRCwtmO6Y/rs:fit/g:sm/q:90/h:325/w:348/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTMwNDEy/OS0xMzMzMzg4MzY4/LmpwZWc.jpeg"
+    },
+    {
+      "name": "Record Technology Incorporated",
+      "catno": "19711",
+      "entity_type": "44",
+      "entity_type_name": "Plated At",
+      "id": 66254,
+      "resource_url": "https://api.discogs.com/labels/66254",
+      "thumbnail_url": "https://i.discogs.com/NZIJOUdgmVHURy9AfZAXM0L0OB6S3lijFX4CZ_-nWh4/rs:fit/g:sm/q:90/h:240/w:240/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9MLTY2MjU0/LTE1MTYyOTg3NDIt/NDQxMS5wbmc.jpeg"
+    }
+  ],
+  "formats": [
+    {
+      "name": "Vinyl",
+      "qty": "1",
+      "descriptions": [
+        "LP",
+        "Album",
+        "Reissue",
+        "Stereo"
+      ],
+      "text": "180 Gram"
+    }
+  ],
+  "data_quality": "Correct",
+  "community": {
+    "have": 25277,
+    "want": 7021,
+    "rating": {
+      "count": 2328,
+      "average": 4.74
+    },
+    "submitter": {
+      "username": "Blareplane",
+      "resource_url": "https://api.discogs.com/users/Blareplane"
+    },
+    "contributors": [
+      {
+        "username": "Blareplane",
+        "resource_url": "https://api.discogs.com/users/Blareplane"
+      },
+      {
+        "username": "ubongo",
+        "resource_url": "https://api.discogs.com/users/ubongo"
+      },
+      {
+        "username": "RockToTheBeat_",
+        "resource_url": "https://api.discogs.com/users/RockToTheBeat_"
+      },
+      {
+        "username": "highpower",
+        "resource_url": "https://api.discogs.com/users/highpower"
+      },
+      {
+        "username": "gubarenko",
+        "resource_url": "https://api.discogs.com/users/gubarenko"
+      },
+      {
+        "username": "ScratchTheUpsetter",
+        "resource_url": "https://api.discogs.com/users/ScratchTheUpsetter"
+      },
+      {
+        "username": "soundwave925",
+        "resource_url": "https://api.discogs.com/users/soundwave925"
+      },
+      {
+        "username": "dint10",
+        "resource_url": "https://api.discogs.com/users/dint10"
+      },
+      {
+        "username": "MedozK",
+        "resource_url": "https://api.discogs.com/users/MedozK"
+      },
+      {
+        "username": "ccox",
+        "resource_url": "https://api.discogs.com/users/ccox"
+      },
+      {
+        "username": "clip326",
+        "resource_url": "https://api.discogs.com/users/clip326"
+      },
+      {
+        "username": "eri9",
+        "resource_url": "https://api.discogs.com/users/eri9"
+      },
+      {
+        "username": "torch0001",
+        "resource_url": "https://api.discogs.com/users/torch0001"
+      },
+      {
+        "username": "Pickle_Rick",
+        "resource_url": "https://api.discogs.com/users/Pickle_Rick"
+      },
+      {
+        "username": "ThomasP64",
+        "resource_url": "https://api.discogs.com/users/ThomasP64"
+      },
+      {
+        "username": "matviller",
+        "resource_url": "https://api.discogs.com/users/matviller"
+      },
+      {
+        "username": "THEEDADROCK.BLOG",
+        "resource_url": "https://api.discogs.com/users/THEEDADROCK.BLOG"
+      },
+      {
+        "username": "vinyl_fred",
+        "resource_url": "https://api.discogs.com/users/vinyl_fred"
+      },
+      {
+        "username": "diabolus73",
+        "resource_url": "https://api.discogs.com/users/diabolus73"
+      },
+      {
+        "username": "WolfXCIX",
+        "resource_url": "https://api.discogs.com/users/WolfXCIX"
+      },
+      {
+        "username": "agconselvan",
+        "resource_url": "https://api.discogs.com/users/agconselvan"
+      },
+      {
+        "username": "chhincapie",
+        "resource_url": "https://api.discogs.com/users/chhincapie"
+      },
+      {
+        "username": "BJPratt",
+        "resource_url": "https://api.discogs.com/users/BJPratt"
+      },
+      {
+        "username": "mcvanleer",
+        "resource_url": "https://api.discogs.com/users/mcvanleer"
+      },
+      {
+        "username": "okso",
+        "resource_url": "https://api.discogs.com/users/okso"
+      },
+      {
+        "username": "sejo",
+        "resource_url": "https://api.discogs.com/users/sejo"
+      }
+    ],
+    "data_quality": "Correct",
+    "status": "Accepted"
+  },
+  "format_quantity": 1,
+  "date_added": "2011-04-13T15:19:39-07:00",
+  "date_changed": "2026-01-18T02:36:48-08:00",
+  "num_for_sale": 37,
+  "lowest_price": 19.31,
+  "master_id": 5460,
+  "master_url": "https://api.discogs.com/masters/5460",
+  "title": "Kind Of Blue",
+  "country": "US",
+  "released": "2010",
+  "notes": "Sticker on label contains:\nFeatures the stellar lineup of \nJohn Coltrane, Bill Evans, Cannonball Adderley,\nJimmy Cobb, Paul Chambers\nand Wynton Kelly\n\nThe best-selling jazz album of all the time. \nA cornerstone record music.\n\n\"So What,\" \"Flamenco Sketches\" and\nthree more definitive jazz recordings\n\nLegacy Vinyl [logo]\nIncludes original artwork and \n180-gram heavywieght vinyl\naudiophile vinyl.\n88697680571-S1",
+  "released_formatted": "2010",
+  "identifiers": [
+    {
+      "type": "Barcode",
+      "value": "886976805715"
+    },
+    {
+      "type": "Matrix / Runout",
+      "value": "88697680571-A KPG&MZ@CA 19711.1(3)...",
+      "description": "Side 1, etched"
+    },
+    {
+      "type": "Matrix / Runout",
+      "value": "88697680571-B KPG&MZ@CA 19711.2(3)...",
+      "description": "Side 2, etched"
+    }
+  ],
+  "videos": [
+    {
+      "uri": "https://www.youtube.com/watch?v=ylXk1LBvIqU",
+      "title": "Miles Davis - So What (Audio) (Official Audio)",
+      "description": "”So What” by Miles Davis\r\nListen to Miles Davis: https://MilesDavis.lnk.to/listenYD \r\n\r\nWatch more Miles Davis videos: https://MilesDavis.lnk.to/listenYD/youtube\r\n\r\nSubscribe to the official Miles Davis YouTube channel: https://MilesDavis.lnk.to/subscribe",
+      "duration": 564,
+      "embed": true
+    },
+    {
+      "uri": "https://www.youtube.com/watch?v=ZZcuSBouhVA",
+      "title": "Miles Davis - Freddie Freeloader (Audio) (Official Audio)",
+      "description": "”Freddie Freeloader” by Miles Davis\r\nListen to Miles Davis: https://MilesDavis.lnk.to/listenYD \r\n\r\nWatch more Miles Davis videos: https://MilesDavis.lnk.to/listenYD/youtube\r\n\r\nSubscribe to the official Miles Davis YouTube channel: https://MilesDavis.lnk.t",
+      "duration": 588,
+      "embed": true
+    },
+    {
+      "uri": "https://www.youtube.com/watch?v=TLDflhhdPCg",
+      "title": "Miles Davis - Blue In Green (Official Audio)",
+      "description": "Official music video for ”Blue In Green” by Miles Davis\r\nListen to Miles Davis: https://MilesDavis.lnk.to/listenYD \r\n\r\nWatch more Miles Davis videos: https://MilesDavis.lnk.to/listenYD/youtube\r\n\r\nSubscribe to the official Miles Davis YouTube channel: http",
+      "duration": 339,
+      "embed": true
+    },
+    {
+      "uri": "https://www.youtube.com/watch?v=-488UORrfJ0",
+      "title": "Miles Davis - All Blues (Audio) (Official Audio)",
+      "description": "Official music video for ”All Blues” by Miles Davis\r\nListen to Miles Davis: https://MilesDavis.lnk.to/listenYD \r\n\r\nWatch more Miles Davis videos: https://MilesDavis.lnk.to/listenYD/youtube\r\n\r\nSubscribe to the official Miles Davis YouTube channel: https://",
+      "duration": 0,
+      "embed": true
+    },
+    {
+      "uri": "https://www.youtube.com/watch?v=nTwp1sgUJrM",
+      "title": "Miles Davis - Flamenco Sketches (Audio) (Official Audio)",
+      "description": "Official music video for ”Flamenco Sketches” by Miles Davis\r\nListen to Miles Davis: https://MilesDavis.lnk.to/listenYD \r\n\r\nWatch more Miles Davis videos: https://MilesDavis.lnk.to/listenYD/youtube\r\n\r\nSubscribe to the official Miles Davis YouTube channel: ",
+      "duration": 567,
+      "embed": true
+    }
+  ],
+  "genres": [
+    "Jazz"
+  ],
+  "styles": [
+    "Modal",
+    "Cool Jazz"
+  ],
+  "tracklist": [
+    {
+      "position": "A1",
+      "type_": "track",
+      "title": "So What",
+      "duration": "8:56"
+    },
+    {
+      "position": "A2",
+      "type_": "track",
+      "title": "Freddie Freeloader",
+      "duration": "9:32"
+    },
+    {
+      "position": "A3",
+      "type_": "track",
+      "title": "Blue In Green",
+      "duration": "5:27"
+    },
+    {
+      "position": "B1",
+      "type_": "track",
+      "title": "All Blues",
+      "duration": "11:34"
+    },
+    {
+      "position": "B2",
+      "type_": "track",
+      "title": "Flamenco Sketches",
+      "duration": "9:32"
+    }
+  ],
+  "extraartists": [
+    {
+      "name": "Cannonball Adderley",
+      "anv": "Julian Adderley",
+      "join": "",
+      "role": "Alto Saxophone",
+      "tracks": "A1, A2, B1, B2",
+      "id": 61585,
+      "resource_url": "https://api.discogs.com/artists/61585"
+    },
+    {
+      "name": "Paul Chambers (3)",
+      "anv": "",
+      "join": "",
+      "role": "Bass",
+      "tracks": "",
+      "id": 259778,
+      "resource_url": "https://api.discogs.com/artists/259778"
+    },
+    {
+      "name": "Jimmy Cobb",
+      "anv": "James Cobb",
+      "join": "",
+      "role": "Drums",
+      "tracks": "",
+      "id": 252311,
+      "resource_url": "https://api.discogs.com/artists/252311"
+    },
+    {
+      "name": "Kevin Gray",
+      "anv": "KG",
+      "join": "",
+      "role": "Lacquer Cut By",
+      "tracks": "",
+      "id": 312098,
+      "resource_url": "https://api.discogs.com/artists/312098"
+    },
+    {
+      "name": "Momchil Zanev",
+      "anv": "MZ",
+      "join": "",
+      "role": "Lacquer Cut By",
+      "tracks": "",
+      "id": 2526977,
+      "resource_url": "https://api.discogs.com/artists/2526977"
+    },
+    {
+      "name": "Bill Evans",
+      "anv": "",
+      "join": "",
+      "role": "Liner Notes",
+      "tracks": "",
+      "id": 252310,
+      "resource_url": "https://api.discogs.com/artists/252310"
+    },
+    {
+      "name": "Bill Evans",
+      "anv": "",
+      "join": "",
+      "role": "Piano",
+      "tracks": "A1, A3, B1, B2",
+      "id": 252310,
+      "resource_url": "https://api.discogs.com/artists/252310"
+    },
+    {
+      "name": "Wynton Kelly",
+      "anv": "",
+      "join": "",
+      "role": "Piano",
+      "tracks": "A2",
+      "id": 252308,
+      "resource_url": "https://api.discogs.com/artists/252308"
+    },
+    {
+      "name": "John Coltrane",
+      "anv": "",
+      "join": "",
+      "role": "Tenor Saxophone",
+      "tracks": "",
+      "id": 97545,
+      "resource_url": "https://api.discogs.com/artists/97545"
+    },
+    {
+      "name": "Miles Davis",
+      "anv": "",
+      "join": "",
+      "role": "Trumpet",
+      "tracks": "",
+      "id": 23755,
+      "resource_url": "https://api.discogs.com/artists/23755"
+    },
+    {
+      "name": "Miles Davis",
+      "anv": "M. Davis",
+      "join": "",
+      "role": "Written-By",
+      "tracks": "",
+      "id": 23755,
+      "resource_url": "https://api.discogs.com/artists/23755"
+    }
+  ],
+  "images": [
+    {
+      "type": "primary",
+      "uri": "https://i.discogs.com/Y-zqPsRHLvnYuGQCpOYjxBv-63c4zD8g4DPfPBLMerk/rs:fit/g:sm/q:90/h:600/w:592/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/Y-zqPsRHLvnYuGQCpOYjxBv-63c4zD8g4DPfPBLMerk/rs:fit/g:sm/q:90/h:600/w:592/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/s-YATK9uK15skpOsnkP391Gxe2zBsNG_feNBrxjN3Ww/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+      "width": 592,
+      "height": 600
+    },
+    {
+      "type": "secondary",
+      "uri": "https://i.discogs.com/st5HuN2hwQQcDC0nPIiHONnS9suJOaZaKRMn-0KXjXs/rs:fit/g:sm/q:90/h:600/w:584/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My05MzUxLmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/st5HuN2hwQQcDC0nPIiHONnS9suJOaZaKRMn-0KXjXs/rs:fit/g:sm/q:90/h:600/w:584/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My05MzUxLmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/JSU29r9m_CnpED_HFvY2JGf7ZSLLFFpd6tagMsqgY6c/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My05MzUxLmpwZWc.jpeg",
+      "width": 584,
+      "height": 600
+    },
+    {
+      "type": "secondary",
+      "uri": "https://i.discogs.com/PJKePttoPJqm43bt0MnB9Dvn1LwSiBww9GtINwEy4n0/rs:fit/g:sm/q:90/h:597/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC02MTgyLmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/PJKePttoPJqm43bt0MnB9Dvn1LwSiBww9GtINwEy4n0/rs:fit/g:sm/q:90/h:597/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC02MTgyLmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/MQ4Znt60jmYpzWqPqq7vly0_lplwN5_WLgR969Fz4ro/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC02MTgyLmpwZWc.jpeg",
+      "width": 600,
+      "height": 597
+    },
+    {
+      "type": "secondary",
+      "uri": "https://i.discogs.com/jKyLAYXn1mK4637uacufDTLeo-Ej5bCc-AHZm8VWxTY/rs:fit/g:sm/q:90/h:594/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC01NzQ5LmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/jKyLAYXn1mK4637uacufDTLeo-Ej5bCc-AHZm8VWxTY/rs:fit/g:sm/q:90/h:594/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC01NzQ5LmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/YzNvBj4Y4Uecum-IJNXst6ZLVDBMjZ1VFXTqYuqpUWs/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTUyOTAwNTgx/MC01NzQ5LmpwZWc.jpeg",
+      "width": 600,
+      "height": 594
+    },
+    {
+      "type": "secondary",
+      "uri": "https://i.discogs.com/HmqJPfy7UdWWghFgEPQYVkKnwF3t8vodCM9RVRyvOPg/rs:fit/g:sm/q:90/h:577/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQ3MzkwNTEx/NS00MjAyLmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/HmqJPfy7UdWWghFgEPQYVkKnwF3t8vodCM9RVRyvOPg/rs:fit/g:sm/q:90/h:577/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQ3MzkwNTEx/NS00MjAyLmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/UmhCtvhdbdTASJXfyr1IsEwn7tuGyawG83sjtzZp608/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQ3MzkwNTEx/NS00MjAyLmpwZWc.jpeg",
+      "width": 600,
+      "height": 577
+    },
+    {
+      "type": "secondary",
+      "uri": "https://i.discogs.com/CoAMd9JztZo8ldDuw9UUa-jzWnxpA-tFXjRWTNoMvrU/rs:fit/g:sm/q:90/h:450/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTY3OTMxNjM3/OS00NTYxLmpwZWc.jpeg",
+      "resource_url": "https://i.discogs.com/CoAMd9JztZo8ldDuw9UUa-jzWnxpA-tFXjRWTNoMvrU/rs:fit/g:sm/q:90/h:450/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTY3OTMxNjM3/OS00NTYxLmpwZWc.jpeg",
+      "uri150": "https://i.discogs.com/JBGJ1XdtrEKiPJOX8zDQW0f9Lmd6sF7iz1lNX0RzCPk/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTY3OTMxNjM3/OS00NTYxLmpwZWc.jpeg",
+      "width": 600,
+      "height": 450
+    }
+  ],
+  "thumb": "https://i.discogs.com/s-YATK9uK15skpOsnkP391Gxe2zBsNG_feNBrxjN3Ww/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI4MjU0/NTYtMTQzMDc3MDE0/My0xMDU3LmpwZWc.jpeg",
+  "estimated_weight": 230,
+  "blocked_from_sale": false,
+  "is_offensive": false
+}
