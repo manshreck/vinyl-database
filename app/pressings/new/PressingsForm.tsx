@@ -172,6 +172,7 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!releaseSelected) return
     setPending(true)
     const data = new FormData(e.currentTarget)
     await createPressing(data)
@@ -337,6 +338,7 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
               placeholder="Search by title…"
               value={releaseQuery}
               onChange={(e) => setReleaseQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
             />
             {releaseResults.length > 0 && (
               <div className={dropdownClass}>

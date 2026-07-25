@@ -9,9 +9,9 @@ export async function resolveReleaseId(prisma: PrismaClient, formData: FormData)
   const existingReleaseId = formData.get('releaseId') ? Number(formData.get('releaseId')) : null
   if (existingReleaseId) return existingReleaseId
 
-  const title = (formData.get('newReleaseTitle') as string).trim()
+  const title = ((formData.get('newReleaseTitle') as string) ?? '').trim()
   const originalReleaseYear = Number(formData.get('newReleaseYear'))
-  const artistName = (formData.get('newArtistName') as string).trim()
+  const artistName = ((formData.get('newArtistName') as string) ?? '').trim()
   const existingArtistId = formData.get('newArtistId') ? Number(formData.get('newArtistId')) : null
   const genreIds = formData.getAll('genreIds').map(Number).filter(Boolean)
   const coverImageUrl = (formData.get('newReleaseCoverImageUrl') as string | null)?.trim() || null
