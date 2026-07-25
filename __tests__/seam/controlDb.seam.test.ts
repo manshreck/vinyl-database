@@ -12,24 +12,15 @@
  * real create/find/delete round-trip) are real-Postgres behaviors a fake would have
  * to reimplement from assumptions rather than verify.
  */
-import type { Pool } from 'pg'
 import {
   createScratchDatabase,
   dropScratchDatabase,
   generateScratchDatabaseName,
 } from '@/test-support/db/scratchDatabase'
+import { resetControlDbGlobals } from '@/test-support/db/controlDbGlobals'
 import { tenantConnectionString } from '@/lib/dbUrls'
 
 type ControlDbModule = typeof import('@/lib/controlDb')
-type ControlDbGlobal = { controlPool?: Pool; controlPoolReady?: Promise<void> }
-
-/** Closes the cached pool (if any) and clears the globalThis cache, so the next load or close never touches an already-ended pool. */
-async function resetControlDbGlobals(): Promise<void> {
-  const global = globalThis as unknown as ControlDbGlobal
-  if (global.controlPool) await global.controlPool.end()
-  delete global.controlPool
-  delete global.controlPoolReady
-}
 
 /** Loads a fresh instance of controlDb.ts pointed at `databaseName`, closing any previously cached pool first. */
 async function loadControlDb(databaseName: string): Promise<ControlDbModule> {

@@ -11,9 +11,15 @@ database — as distinct from a fake, which is a separate reimplementation. See
 swe-test-doubles for the full definition; §1 below is where the distinction matters
 most.
 
-**Current state:** 166 tests, 25 files, all layer 1 (unit) or layer 2 (component). Zero
+**Starting state:** 166 tests, 25 files, all layer 1 (unit) or layer 2 (component). Zero
 seam, system, or end-to-end tests. Full findings are in the conversation that preceded
 this plan; this document doesn't repeat the inventory, only the resulting work.
+
+**Final state (all five phases done — see §6):** all five pyramid layers populated —
+unit/component (§2.1), a fake + proxy test-double infrastructure with two contract
+tests (§2.2), three seam integration tests (§2.3), one system integration test (§2.4),
+and seven Playwright end-to-end journeys (§2.5) — all green against real local
+Postgres and, where relevant, the real Discogs API.
 
 ---
 
@@ -184,21 +190,38 @@ component-test coverage for it and no `next/navigation` mock, silently breaking
 `npm test` — fixed by adding the same `useRouter` mock `SearchForm.test.tsx` already
 used, plus new tests for the Discogs-search-box behavior.
 
-### 2.4 System integration test (layer 4 — new)
+### 2.4 System integration test (layer 4) — ✅ done
 
 One test, justified by two named gaps at once (Configuration, and emergent behavior of
 assembly — see the system-integration skill's gap list):
 
 - `system/registration.system.test.ts` — `registerUser` action + real `controlDb` +
-  real `provisionTenant` + real scratch control *and* tenant databases. Success path:
-  a user row and a working tenant database both exist afterward, queryable for real.
-  Failure path: force `createTenantDatabase` to fail and assert the user row is
-  genuinely gone from the real control DB — not just that `deleteUser` was called
-  (which `registerUser.test.ts` already covers at the unit level with a mock; this
-  test proves the mock's assumption was correct).
+  real `provisionTenant` + a real scratch control database *and* a real tenant
+  database. Success path: a user row and a working tenant database both exist
+  afterward, queryable for real through the real generated Prisma Client. Failure
+  path: force `createTenantDatabase` to fail and assert the user row is genuinely gone
+  from the real (scratch) control DB — not just that `deleteUser` was called (which
+  `registerUser.test.ts` already covers at the unit level with a mock; this test
+  proves the mock's assumption was correct).
 
 This is deliberately the *only* layer-4 test in the initial plan. Everything else
 smaller reduces to a chain of the seam tests above.
+
+**Result**: `registerUser.ts`, `controlDb.ts`, and `provisionTenant.ts` are all
+reloaded fresh together (`jest.resetModules()`) against a scratch control database, so
+`registerUser.ts`'s own internal `import` of `controlDb.ts` resolves to the same
+instance the test asserts against — the same technique `controlDb.seam.test.ts` uses
+for itself, now shared via `test-support/db/controlDbGlobals.ts`. The failure path
+couldn't use `jest.spyOn` on `createTenantDatabase` directly: this codebase's SWC
+compilation makes named exports non-configurable, so spying threw "Cannot redefine
+property." Forcing a real connection failure instead — pointing `DATABASE_URL` at an
+unreachable address for just that one call, leaving `CONTROL_DATABASE_URL` untouched —
+turned out to be both the workaround and arguably the more faithful test, since it's a
+genuine Postgres-unavailable failure rather than a synthetic one. Both tests pass
+against real Postgres, and cleanup leaves nothing behind (verified: no leftover
+`vinyl_test_*` databases, no leftover rows in the real `vinyl_control`, since this
+test's control-db operations never touch it — they're fully redirected to the scratch
+database for the test's duration).
 
 ### 2.5 End-to-end tests (layer 5) — ✅ done
 
@@ -261,7 +284,7 @@ __tests__/
   components/     # unchanged + new files — layer 2
   lib/            # unchanged + new files — layer 1
   seam/           # ✅ built — layer 3
-  system/         # new — layer 4 (not yet built)
+  system/         # ✅ built — layer 4
   contract/       # ✅ built — fake-vs-real checks (run alongside layer 3)
 
 e2e/                                 # ✅ built — layer 5, outside Jest entirely
@@ -326,11 +349,11 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
   fastest-rotting layer without one. Any bug an e2e test catches that a smaller test
   *could* have caught becomes a new unit/component/seam test at the lowest layer that
   reproduces it — the e2e suite doesn't grow to cover it too.
-- **`DEVELOPER_GUIDE.md` §8.7 still needs a follow-up pass for the fake/scratch-DB
-  conventions** (seam/contract layer) the way it documents the mock-Prisma convention —
-  not part of this plan, flagged so it isn't forgotten. The e2e conventions (§2.5) were
-  added to §8.7 when that layer landed, so this remaining gap is scoped to layers 3/4
-  now, not layer 5.
+- **`DEVELOPER_GUIDE.md` §8.7 documents each layer's conventions as it landed**: the
+  seam/system real-Postgres conventions (`controlDbGlobals.ts`, and the
+  `jest.spyOn`-can't-stub-named-exports gotcha this codebase's SWC compilation causes)
+  were added alongside §2.4; the e2e conventions alongside §2.5. No further follow-up
+  pass is outstanding.
 
 ---
 
@@ -346,12 +369,12 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
 3. **Seam integration tests** (§2.3) — ✅ done. `provisionTenant.seam.test.ts`,
    `controlDb.seam.test.ts`, and `tenantPrisma.seam.test.ts` all green against real
    local Postgres.
-4. **System integration test** (§2.4) — still pending. The registration-flow test,
-   once picked back up.
+4. **System integration test** (§2.4) — ✅ done. `registration.system.test.ts`, green
+   against real Postgres, built after §2.5 rather than before it.
 5. **End-to-end** (§2.5) — ✅ done, out of order, at explicit request ahead of §2.4.
    Playwright + seven journeys (broader than the original three), all green against
    real Postgres and real Discogs on both a first run and a clean re-run.
 
-Each phase is independently useful and shippable; none blocks starting the next one
-early if there's a specific reason to — as this out-of-order landing of §2.5 before
+All five phases are now done. Each was independently useful and shippable on its own;
+none blocked starting the next one early — as this out-of-order landing of §2.5 before
 §2.4 demonstrates.
