@@ -200,23 +200,44 @@ assembly — see the system-integration skill's gap list):
 This is deliberately the *only* layer-4 test in the initial plan. Everything else
 smaller reduces to a chain of the seam tests above.
 
-### 2.5 End-to-end tests (layer 5 — new tooling)
+### 2.5 End-to-end tests (layer 5) — ✅ done
 
-Requires adding Playwright (`@playwright/test`) — nothing in the repo runs a browser
-today. Three journeys, chosen by what a failure would actually cost, per the e2e
-skill's anchor rule:
+Built ahead of §2.4 (layer 4, still pending) at explicit request. Added Playwright
+(`@playwright/test` + the Chromium binary) — nothing else in the repo ran a browser
+before this. Seven journeys, each its own spec file, per the e2e skill's anchor rule —
+broader than this plan's original three, covering every top-level user-facing flow
+rather than just the highest-cost subset:
 
-1. `e2e/register-and-add-record.spec.ts` — *register → manually add a record → see it
-   on the collection page.* The core value proposition, end to end.
-2. `e2e/discogs-search-and-prefill.spec.ts` — *search Discogs → Add to Collection →
-   title/year/color/cover image arrive prefilled.* The feature area with the most
-   accumulated complexity this project has seen, and the one that's been verified by
-   hand repeatedly.
-3. `e2e/edit-pressing.spec.ts` — *log in → edit a pressing → updated values reflected
-   on the list.* Exercises the update path and session auth together.
+| Spec | Journey |
+|---|---|
+| `e2e/create-account.spec.ts` | Register → land in a working, empty collection |
+| `e2e/view-collection.spec.ts` | Open the collection → see an existing pressing's details |
+| `e2e/add-record.spec.ts` | Blank "Add a record" form → manually create a release + pressing → see it listed |
+| `e2e/edit-record.spec.ts` | Edit an existing pressing → change reflected on the collection list |
+| `e2e/add-to-wishlist.spec.ts` | Blank "Add to wishlist" form → manually create a release + wishlist item → see it listed |
+| `e2e/view-wishlist.spec.ts` | Open the wishlist → see an existing item, with its "Add to Collection" link |
+| `e2e/discogs-search-prefill.spec.ts` | Search Discogs → pick a result → Add to Collection → title/year/artist/cover image arrive prefilled |
 
-These hit real Discogs (journey 2) and a real database, so they're the slowest, most
-expensive layer — see §4 for how they're kept from blocking normal development.
+Design decisions (see `DEVELOPER_GUIDE.md` §8.7 for the fuller version):
+
+- **Each test registers its own throwaway account** (`e2e/support/testUser.ts`) rather
+  than sharing one fixture user — costs a real tenant-database provision per test, but
+  buys full isolation and avoids any cross-spec ordering.
+- **Fixture data seeds directly through Prisma** (`e2e/support/db.ts`) for the three
+  view/edit journeys, so they don't silently re-test the add flow that already has its
+  own dedicated spec.
+- **Cleanup by email domain**: every test account uses `@vinyl-test.local`;
+  `e2e/global-teardown.ts` finds and drops all of them (tenant database + control-db
+  row) after the run, re-scanning rather than tracking accounts created during the
+  run, so it's self-healing across a crashed prior run too.
+- **Serial execution** (`workers: 1`) — these share one Postgres instance and one
+  rate-limited Discogs token; parallelizing would only buy flake.
+
+Only `discogs-search-prefill.spec.ts` hits real Discogs; the rest hit a real local
+Postgres via real tenant databases the tests provision and tear down themselves. All
+seven passed against real Postgres and the real Discogs API on the first run, and
+again on a clean re-run with zero leftover accounts or databases — see §4 for how this
+layer is kept from blocking normal development.
 
 ---
 
@@ -243,9 +264,14 @@ __tests__/
   system/         # new — layer 4 (not yet built)
   contract/       # ✅ built — fake-vs-real checks (run alongside layer 3)
 
-e2e/              # new — layer 5, outside Jest entirely (not yet built)
-  playwright.config.ts
+e2e/                                 # ✅ built — layer 5, outside Jest entirely
+  support/
+    testUser.ts
+    db.ts
+  global-teardown.ts
   *.spec.ts
+
+playwright.config.ts                 # ✅ built — repo root, alongside jest.config.ts
 ```
 
 `test-support/` is deliberately not under `__tests__/` — it's shared infrastructure,
@@ -263,7 +289,7 @@ Two Jest configs, plus Playwright as a separate tool:
 | `npm test` | `jest.config.ts` (unchanged) | 1–2 | nothing external | every save, every commit — stays exactly as fast/hermetic as today |
 | `npm run test:integration` | `jest.integration.config.ts` (new) | 3–4 | local Postgres running (already a prerequisite) | before pushing; would become CI's post-submit stage |
 | `npm run test:contract` | same integration config, `__tests__/contract/discogs.*` only | contract | `DISCOGS_TOKEN` + network | manually, or a scheduled job — never on every run, to respect the shared rate limit |
-| `npm run test:e2e` | `e2e/playwright.config.ts` | 5 | local Postgres, `DISCOGS_TOKEN`, dev server running | before a release; on demand |
+| `npm run test:e2e` | `playwright.config.ts` | 5 | local Postgres, `DISCOGS_TOKEN`; starts its own dev server if one isn't already running | before a release; on demand |
 
 `jest.integration.config.ts` mirrors `jest.config.ts` but sets `testEnvironment: 'node'`,
 `testMatch` scoped to `__tests__/{seam,system,contract}/**/*.test.ts`, and
@@ -300,9 +326,11 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
   fastest-rotting layer without one. Any bug an e2e test catches that a smaller test
   *could* have caught becomes a new unit/component/seam test at the lowest layer that
   reproduces it — the e2e suite doesn't grow to cover it too.
-- **`DEVELOPER_GUIDE.md` §8.7 gets a follow-up pass** once this lands, documenting the
-  fake/scratch-DB conventions the way it currently documents the mock-Prisma
-  convention — not part of this plan, but flagged here so it isn't forgotten.
+- **`DEVELOPER_GUIDE.md` §8.7 still needs a follow-up pass for the fake/scratch-DB
+  conventions** (seam/contract layer) the way it documents the mock-Prisma convention —
+  not part of this plan, flagged so it isn't forgotten. The e2e conventions (§2.5) were
+  added to §8.7 when that layer landed, so this remaining gap is scoped to layers 3/4
+  now, not layer 5.
 
 ---
 
@@ -318,11 +346,12 @@ it's added, the natural split per the CI skill is: `npm test` presubmit-blocking
 3. **Seam integration tests** (§2.3) — ✅ done. `provisionTenant.seam.test.ts`,
    `controlDb.seam.test.ts`, and `tenantPrisma.seam.test.ts` all green against real
    local Postgres.
-4. **System integration test** (§2.4) — next. The registration-flow test, now that the
-   seam layer it's built from exists and is green.
-5. **End-to-end** (§2.5) — add Playwright, then the three journeys, last — the most
-   expensive layer, and the one that most benefits from everything below it already
-   being solid.
+4. **System integration test** (§2.4) — still pending. The registration-flow test,
+   once picked back up.
+5. **End-to-end** (§2.5) — ✅ done, out of order, at explicit request ahead of §2.4.
+   Playwright + seven journeys (broader than the original three), all green against
+   real Postgres and real Discogs on both a first run and a clean re-run.
 
 Each phase is independently useful and shippable; none blocks starting the next one
-early if there's a specific reason to.
+early if there's a specific reason to — as this out-of-order landing of §2.5 before
+§2.4 demonstrates.

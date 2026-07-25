@@ -810,6 +810,15 @@ mockTransaction.mockImplementation(async (fn) => fn(mockTx))
 
 **Component tests** render with `@testing-library/react` and interact with `userEvent.setup()` (v14 API — do not use the legacy `userEvent.click()` directly).
 
+**End-to-end tests** (`e2e/*.spec.ts`, run via `npm run test:e2e`) use [Playwright](https://playwright.dev) against a real browser, a real local Postgres, and (for the Discogs journey) the real Discogs API — see `TESTING_PLAN.md` §2.5 and the `swe-e2e-testing` skill for what belongs at this layer. Conventions:
+
+- **One spec per named user journey** — create account, view collection, add record, edit record, add to wishlist, search Discogs and prepopulate, view wishlist. A new e2e test needs its own named journey, not "more coverage" of an existing one.
+- **Forms have no `htmlFor`/`id` association between `<label>` and `<input>`** (a pre-existing accessibility gap, not e2e-specific) — `getByLabel()` won't find them. Use `page.locator('input[name="..."]')` / `select[name="..."]` instead, matching the same convention the Jest component tests already use for the same reason. Search boxes that do have placeholders (e.g. "Search by title…") use `getByPlaceholder()`.
+- **Each test registers its own throwaway account** via `e2e/support/testUser.ts`'s `registerNewUser()`, using a unique `e2e-<label>-<random>@vinyl-test.local` email from `uniqueTestEmail()`. This costs a real tenant-database provision per test, traded for full isolation — no shared account, no cross-spec test-ordering to reason about.
+- **Fixture data that isn't the point of the journey is seeded directly through Prisma**, not the UI: `e2e/support/db.ts`'s `seedPressing()`/`seedWishlistItem()` open their own short-lived `PrismaClient` (not the app's cached `getTenantPrisma`, whose idle-eviction timer would otherwise keep the Playwright process alive) so that "view collection", "view wishlist", and "edit a record" don't re-drive the add flow those journeys deliberately leave to their own dedicated specs.
+- **Cleanup is by email domain, not by tracking accounts**: `e2e/global-teardown.ts` finds every control-db user whose email ends in `@vinyl-test.local` after the run and drops both their tenant database and their control-db row — self-healing across crashed runs, since it re-scans on every teardown rather than relying on a list built during the run.
+- **Runs serially** (`workers: 1`, `fullyParallel: false` in `playwright.config.ts`): specs share one Postgres instance and one rate-limited Discogs token, so parallelizing them buys nothing but flake.
+
 ---
 
 ## 9. Configuration Reference
@@ -833,6 +842,11 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 - `setupFilesAfterEnv: ['<rootDir>/jest.setup.ts']` — loads `@testing-library/jest-dom` matchers.
 - `moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' }` — resolves the `@/` alias in tests.
 - `testMatch: ['<rootDir>/__tests__/**/*.test.{ts,tsx}']` — only runs files in `__tests__/`.
+
+### `playwright.config.ts`
+- `testDir: './e2e'`, one `chromium` project — see §8.7's end-to-end conventions above.
+- `webServer` starts `npm run dev` and reuses an already-running one outside CI, so `npm run test:e2e` works whether or not the dev server is up.
+- `globalTeardown: './e2e/global-teardown.ts'` — removes every `@vinyl-test.local` account (and its tenant database) the run created.
 
 ### Environment variables
 

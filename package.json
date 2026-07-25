@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest --config jest.integration.config.ts --runInBand --testPathIgnorePatterns=contract/discogs",
-    "test:contract": "jest --config jest.integration.config.ts --runInBand __tests__/contract/discogs"
+    "test:contract": "jest --config jest.integration.config.ts --runInBand __tests__/contract/discogs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",
@@ -24,6 +25,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

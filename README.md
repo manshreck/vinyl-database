@@ -17,6 +17,7 @@ After installing these packages, you will need to perform the following setup ta
 * Set up environment variables for the database and discogs access
 * Generate the Prisma client (via npm)
 * Install the Jest testing framework and React testing library (via npm)
+* (Optional, only needed for end-to-end tests) Install Playwright and its browser binary (via npm)
 
 Once you have installed everything and set up your environment, you can then run the test suite and run the
 application. The following sections walk you through this.
@@ -160,9 +161,18 @@ The test suite uses Jest and React Testing Library. These are development depend
 npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom @types/jest
 ```
 
+End-to-end tests (see below) use [Playwright](https://playwright.dev), which also needs its own browser binary downloaded once. Also included automatically by `npm install`, but only needed if you plan to run `npm run test:e2e`:
+
+```bash
+npm install --save-dev @playwright/test
+npx playwright install chromium
+```
+
 ## Running the Tests
 
-Run the full suite once:
+This project has four tiers of tests, matched to how much they need to be true to run (see `TESTING_PLAN.md` for the full breakdown):
+
+Run the fast suite (unit, component — no external dependencies, safe to run constantly):
 
 ```bash
 npm test
@@ -180,7 +190,25 @@ Run with a coverage report:
 npm run test:coverage
 ```
 
-The suite covers utility functions, server actions, API route handlers, and interactive UI components. No database connection is required — all Prisma calls are mocked.
+Run the integration suite (seam and system tests — needs a local Postgres running, per the Prerequisites above):
+
+```bash
+npm run test:integration
+```
+
+Run the Discogs contract test (needs `DISCOGS_TOKEN` and network access — not run automatically, since it costs a real request against the shared rate-limited token):
+
+```bash
+npm run test:contract
+```
+
+Run the end-to-end suite (Playwright, real browser — needs local Postgres, `DISCOGS_TOKEN`, and starts its own dev server if one isn't already running on port 3000):
+
+```bash
+npm run test:e2e
+```
+
+`npm test` covers utility functions, server actions, API route handlers, and interactive UI components — no database connection is required, all Prisma calls are mocked. The other three tiers hit a real (disposable, per-test) database and, for `test:contract`/`test:e2e`'s Discogs journey, the real Discogs API.
 
 ## Running the App
 
