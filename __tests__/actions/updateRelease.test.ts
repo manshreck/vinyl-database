@@ -3,6 +3,7 @@
  */
 import { updateRelease } from '@/app/actions/updateRelease'
 
+const mockArtistFindFirst = jest.fn()
 const mockReleaseUpdate = jest.fn()
 const mockArtistUpdate = jest.fn()
 const mockDeleteMany = jest.fn()
@@ -12,6 +13,7 @@ const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
   getTenantPrisma: jest.fn().mockResolvedValue({
+    artist: { findFirst: (...args: unknown[]) => mockArtistFindFirst(...args) },
     $transaction: (...args: unknown[]) => mockTransaction(...args),
   }),
 }))
@@ -49,6 +51,7 @@ function makeFormData(fields: Record<string, string | string[]>): FormData {
 describe('updateRelease', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockArtistFindFirst.mockResolvedValue(null)
     mockReleaseUpdate.mockResolvedValue({})
     mockArtistUpdate.mockResolvedValue({})
     mockDeleteMany.mockResolvedValue({})
@@ -67,7 +70,7 @@ describe('updateRelease', () => {
       'sortName[10]': 'Davis, Miles',
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockReleaseUpdate).toHaveBeenCalledWith({
       where: { releaseId: 5 },
@@ -89,7 +92,7 @@ describe('updateRelease', () => {
       artistIds: [],
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockReleaseUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ notes: null }) })
@@ -105,7 +108,7 @@ describe('updateRelease', () => {
       artistIds: [],
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockReleaseUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ coverImageUrl: null }) })
@@ -123,8 +126,9 @@ describe('updateRelease', () => {
       'sortName[10]': 'Davis, Miles',
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
+    expect(mockArtistFindFirst).toHaveBeenCalledWith({ where: { name: 'Miles Davis', NOT: { artistId: 10 } } })
     expect(mockArtistUpdate).toHaveBeenCalledWith({
       where: { artistId: 10 },
       data: { name: 'Miles Davis', sortName: 'Davis, Miles' },
@@ -142,7 +146,7 @@ describe('updateRelease', () => {
       'sortName[10]': '',
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockArtistUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ sortName: 'Miles Davis' }) })
@@ -159,7 +163,7 @@ describe('updateRelease', () => {
       genreIds: ['3', '7'],
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockDeleteMany).toHaveBeenCalledWith({ where: { releaseId: 5 } })
     expect(mockCreateMany).toHaveBeenCalledWith({
@@ -179,7 +183,7 @@ describe('updateRelease', () => {
       artistIds: [],
     })
 
-    await updateRelease(5, '/pressings', fd)
+    await updateRelease(5, '/pressings', null, fd)
 
     expect(mockDeleteMany).toHaveBeenCalled()
     expect(mockCreateMany).not.toHaveBeenCalled()
@@ -194,8 +198,75 @@ describe('updateRelease', () => {
       artistIds: [],
     })
 
-    await updateRelease(5, '/artists/10', fd)
+    await updateRelease(5, '/artists/10', null, fd)
 
     expect(mockRedirect).toHaveBeenCalledWith('/artists/10')
+  })
+
+  it('does not flag a conflict when an artist keeps their own name', async () => {
+    // findFirst excludes the artist's own id via NOT, so mocking it to always
+    // return null here simulates "no *other* artist has this name" correctly.
+    const fd = makeFormData({
+      title: 'Kind of Blue',
+      originalReleaseYear: '1959',
+      notes: '',
+      coverImageUrl: '',
+      artistIds: ['10'],
+      'name[10]': 'Miles Davis',
+      'sortName[10]': '',
+    })
+
+    await updateRelease(5, '/pressings', null, fd)
+
+    expect(mockArtistUpdate).toHaveBeenCalledWith({
+      where: { artistId: 10 },
+      data: { name: 'Miles Davis', sortName: 'Miles Davis' },
+    })
+    expect(mockRedirect).toHaveBeenCalledWith('/pressings')
+  })
+
+  // Regression: renaming an artist to a name that already belongs to a *different*
+  // existing artist used to crash with an unhandled unique-constraint violation on
+  // Artist.name. Must reject with a clear error instead, and save nothing.
+  it('returns an error and saves nothing when the new name matches a different existing artist', async () => {
+    mockArtistFindFirst.mockResolvedValue({ artistId: 99, name: 'Radiohead', sortName: 'Radiohead' })
+    const fd = makeFormData({
+      title: 'Kind of Blue',
+      originalReleaseYear: '1959',
+      notes: '',
+      coverImageUrl: '',
+      artistIds: ['10'],
+      'name[10]': 'Radiohead',
+      'sortName[10]': '',
+    })
+
+    const result = await updateRelease(5, '/pressings', null, fd)
+
+    expect(result).toEqual({
+      error: 'An artist named "Radiohead" already exists. Choose a different name, or edit that artist directly.',
+    })
+    expect(mockTransaction).not.toHaveBeenCalled()
+    expect(mockRedirect).not.toHaveBeenCalled()
+  })
+
+  it('returns an error when two artists in the same submission are renamed to the same name', async () => {
+    const fd = makeFormData({
+      title: 'Various Artists Comp',
+      originalReleaseYear: '1959',
+      notes: '',
+      coverImageUrl: '',
+      artistIds: ['10', '11'],
+      'name[10]': 'Same Name',
+      'sortName[10]': '',
+      'name[11]': 'Same Name',
+      'sortName[11]': '',
+    })
+
+    const result = await updateRelease(5, '/pressings', null, fd)
+
+    expect(result).toEqual({
+      error: 'An artist named "Same Name" already exists. Choose a different name, or edit that artist directly.',
+    })
+    expect(mockTransaction).not.toHaveBeenCalled()
   })
 })

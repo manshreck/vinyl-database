@@ -211,6 +211,17 @@ function buildArtistModel(store: Store) {
       return { ...updated }
     },
 
+    // Used by lib/releaseIntake.ts (reuse an existing artist by exact name match) and
+    // by app/actions/updateRelease.ts (detect a rename that collides with a
+    // *different* artist, via NOT: { artistId }) — both exist to avoid violating the
+    // unique constraint on Artist.name.
+    async findFirst({ where }: { where: { name: string; NOT?: { artistId: number } } }) {
+      const match = [...store.artists.values()].find(
+        (a) => a.name === where.name && a.artistId !== where.NOT?.artistId
+      )
+      return match ? { ...match } : null
+    },
+
     async findMany(args: { where?: { name?: { contains: string; mode?: string } }; orderBy?: { sortName?: 'asc' | 'desc' }; take?: number } = {}) {
       let rows = [...store.artists.values()]
       if (args.where?.name?.contains) {

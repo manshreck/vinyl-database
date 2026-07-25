@@ -3,6 +3,7 @@
  */
 import { createPressing } from '@/app/actions/createPressing'
 
+const mockArtistFindFirst = jest.fn()
 const mockArtistCreate = jest.fn()
 const mockReleaseCreate = jest.fn()
 const mockPressingCreate = jest.fn()
@@ -10,7 +11,10 @@ const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
   getTenantPrisma: jest.fn().mockResolvedValue({
-    artist: { create: (...args: unknown[]) => mockArtistCreate(...args) },
+    artist: {
+      findFirst: (...args: unknown[]) => mockArtistFindFirst(...args),
+      create: (...args: unknown[]) => mockArtistCreate(...args),
+    },
     release: { create: (...args: unknown[]) => mockReleaseCreate(...args) },
     pressing: { create: (...args: unknown[]) => mockPressingCreate(...args) },
   }),
@@ -55,6 +59,7 @@ const PRESSING_FIELDS = {
 describe('createPressing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockArtistFindFirst.mockResolvedValue(null)
     mockArtistCreate.mockResolvedValue({ artistId: 99 })
     mockReleaseCreate.mockResolvedValue({ releaseId: 88 })
     mockPressingCreate.mockResolvedValue({})

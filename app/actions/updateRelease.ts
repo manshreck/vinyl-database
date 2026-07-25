@@ -3,12 +3,44 @@
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
+import type { PrismaClient } from '@prisma/client'
+
+export type FormState = { error: string } | null
+
+type Rename = { artistId: number; name: string }
+
+/**
+ * Artist.name is unique in the schema. Renaming an artist to a name that collides
+ * with a *different* existing artist — either one already in the database, or
+ * another artist in this same submission — would otherwise crash with an unhandled
+ * constraint violation. Unlike creating a release (where a name match means "reuse
+ * that artist"), silently merging two already-distinct artist identities on a rename
+ * is not a safe default: it's ambiguous whether the user means to merge two records
+ * or made a typo, and EditReleaseForm has no way to signal a merge was intended. So
+ * this rejects with a clear error instead, leaving nothing saved.
+ */
+async function findArtistNameConflict(prisma: PrismaClient, renames: Rename[]): Promise<string | null> {
+  const seenNames = new Map<string, number>()
+  for (const { artistId, name } of renames) {
+    const otherArtistId = seenNames.get(name)
+    if (otherArtistId !== undefined && otherArtistId !== artistId) return name
+    seenNames.set(name, artistId)
+  }
+
+  for (const { artistId, name } of renames) {
+    const conflict = await prisma.artist.findFirst({ where: { name, NOT: { artistId } } })
+    if (conflict) return name
+  }
+
+  return null
+}
 
 export async function updateRelease(
   releaseId: number,
   returnTo: string,
+  _prevState: FormState,
   formData: FormData
-) {
+): Promise<FormState> {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
@@ -20,6 +52,14 @@ export async function updateRelease(
 
   // Collect artist edits: name[artistId] and sortName[artistId]
   const artistIds = formData.getAll('artistIds').map(Number)
+  const renames: Rename[] = artistIds
+    .map((artistId) => ({ artistId, name: (formData.get(`name[${artistId}]`) as string).trim() }))
+    .filter((r): r is Rename => !!r.name)
+
+  const conflictName = await findArtistNameConflict(prisma, renames)
+  if (conflictName) {
+    return { error: `An artist named "${conflictName}" already exists. Choose a different name, or edit that artist directly.` }
+  }
 
   await prisma.$transaction(async (tx) => {
     // Update the release itself
@@ -29,15 +69,12 @@ export async function updateRelease(
     })
 
     // Update each associated artist's name and sortName
-    for (const artistId of artistIds) {
-      const name = (formData.get(`name[${artistId}]`) as string).trim()
+    for (const { artistId, name } of renames) {
       const sortName = (formData.get(`sortName[${artistId}]`) as string).trim()
-      if (name) {
-        await tx.artist.update({
-          where: { artistId },
-          data: { name, sortName: sortName || name },
-        })
-      }
+      await tx.artist.update({
+        where: { artistId },
+        data: { name, sortName: sortName || name },
+      })
     }
 
     // Replace genre associations

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { updateRelease } from '@/app/actions/updateRelease'
+import { useActionState, useState } from 'react'
+import { updateRelease, type FormState } from '@/app/actions/updateRelease'
 
 type Artist = { artistId: number; name: string; sortName: string }
 type Genre = { genreId: number; name: string }
@@ -22,8 +22,13 @@ type Props = {
   returnTo: string
 }
 
+const initialState: FormState = null
+
 export default function EditReleaseForm({ release, allGenres, returnTo }: Props) {
-  const [pending, setPending] = useState(false)
+  const [state, formAction, pending] = useActionState(
+    updateRelease.bind(null, release.releaseId, returnTo),
+    initialState
+  )
   const currentGenreIds = release.genres.map((rg) => rg.genre.genreId)
   const [selectedGenres, setSelectedGenres] = useState<number[]>(currentGenreIds)
 
@@ -33,17 +38,15 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
     )
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setPending(true)
-    const data = new FormData(e.currentTarget)
-    await updateRelease(release.releaseId, returnTo, data)
-  }
-
   const sortedArtists = [...release.artists].sort((a, b) => a.artistOrder - b.artistOrder)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form action={formAction} className="space-y-8">
+      {state?.error && (
+        <p className="rounded-lg bg-red-50 dark:bg-red-950 px-4 py-2 text-sm text-red-700 dark:text-red-300">
+          {state.error}
+        </p>
+      )}
 
       {/* Release fields */}
       <section className="space-y-4">

@@ -4,11 +4,15 @@
 import type { PrismaClient } from '@prisma/client'
 import { resolveReleaseId } from '@/lib/releaseIntake'
 
+const mockArtistFindFirst = jest.fn()
 const mockArtistCreate = jest.fn()
 const mockReleaseCreate = jest.fn()
 
 const mockPrisma = {
-  artist: { create: (...args: unknown[]) => mockArtistCreate(...args) },
+  artist: {
+    findFirst: (...args: unknown[]) => mockArtistFindFirst(...args),
+    create: (...args: unknown[]) => mockArtistCreate(...args),
+  },
   release: { create: (...args: unknown[]) => mockReleaseCreate(...args) },
 } as unknown as PrismaClient
 
@@ -27,6 +31,7 @@ function makeFormData(fields: Record<string, string | string[]>): FormData {
 describe('resolveReleaseId', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockArtistFindFirst.mockResolvedValue(null)
     mockArtistCreate.mockResolvedValue({ artistId: 99 })
     mockReleaseCreate.mockResolvedValue({ releaseId: 77 })
   })
@@ -39,7 +44,7 @@ describe('resolveReleaseId', () => {
     expect(mockReleaseCreate).not.toHaveBeenCalled()
   })
 
-  it('creates a new artist and release when no releaseId is given', async () => {
+  it('creates a new artist and release when no releaseId is given and no artist matches by name', async () => {
     const fd = makeFormData({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
@@ -47,6 +52,7 @@ describe('resolveReleaseId', () => {
     })
     const result = await resolveReleaseId(mockPrisma, fd)
 
+    expect(mockArtistFindFirst).toHaveBeenCalledWith({ where: { name: 'Miles Davis' } })
     expect(mockArtistCreate).toHaveBeenCalledWith({
       data: { name: 'Miles Davis', sortName: 'Miles Davis' },
     })
@@ -61,6 +67,27 @@ describe('resolveReleaseId', () => {
     expect(result).toBe(77)
   })
 
+  // Regression: typing an artist's name without picking it from the autocomplete
+  // dropdown (no newArtistId) used to always call artist.create, which crashed with
+  // a unique-constraint violation whenever the typed name matched an existing artist
+  // exactly. Must reuse the existing artist instead of trying to create a duplicate.
+  it('reuses an existing artist by exact name match instead of creating a duplicate', async () => {
+    mockArtistFindFirst.mockResolvedValue({ artistId: 5, name: 'Miles Davis', sortName: 'Davis, Miles' })
+    const fd = makeFormData({
+      newReleaseTitle: 'Someone Else Made This',
+      newReleaseYear: '1959',
+      newArtistName: 'Miles Davis',
+    })
+    await resolveReleaseId(mockPrisma, fd)
+
+    expect(mockArtistCreate).not.toHaveBeenCalled()
+    expect(mockReleaseCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        artists: { create: [{ artistId: 5, artistOrder: 1 }] },
+      }),
+    })
+  })
+
   it('uses an existing artist id instead of creating one when newArtistId is provided', async () => {
     const fd = makeFormData({
       newReleaseTitle: 'Kind Of Blue',
@@ -70,6 +97,7 @@ describe('resolveReleaseId', () => {
     })
     await resolveReleaseId(mockPrisma, fd)
 
+    expect(mockArtistFindFirst).not.toHaveBeenCalled()
     expect(mockArtistCreate).not.toHaveBeenCalled()
     expect(mockReleaseCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
