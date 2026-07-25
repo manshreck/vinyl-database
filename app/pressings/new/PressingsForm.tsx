@@ -64,7 +64,7 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
   const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? '')
   const [releaseResults, setReleaseResults] = useState<ReleaseResult[]>([])
   const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(null)
-  const [creatingRelease, setCreatingRelease] = useState(false)
+  const [creatingRelease, setCreatingRelease] = useState(Boolean(initialValues))
   const debouncedReleaseQuery = useDebounce(releaseQuery, 300)
 
   // New release / artist fields
