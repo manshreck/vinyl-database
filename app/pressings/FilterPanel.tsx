@@ -20,6 +20,7 @@ export default function FilterPanel({ artists, formats, genres }: Props) {
   const artistId = searchParams.get('artistId') ?? ''
   const formatId = searchParams.get('formatId') ?? ''
   const genreId = searchParams.get('genreId') ?? ''
+  const sort = searchParams.get('sort') === 'title' ? 'title' : 'artist'
 
   const updateParam = useCallback(
     (key: string, value: string) => {
@@ -69,6 +70,15 @@ export default function FilterPanel({ artists, formats, genres }: Props) {
         {genres.map((g) => (
           <option key={g.genreId} value={g.genreId}>{g.name}</option>
         ))}
+      </select>
+
+      <select
+        value={sort}
+        onChange={(e) => updateParam('sort', e.target.value === 'artist' ? '' : e.target.value)}
+        className={selectClass(sort === 'title')}
+      >
+        <option value="artist">Sort: Artist</option>
+        <option value="title">Sort: Title</option>
       </select>
 
       {hasFilters && (

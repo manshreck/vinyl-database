@@ -86,4 +86,30 @@ describe('FilterPanel', () => {
     await user.click(screen.getByRole('button', { name: /clear filters/i }))
     expect(mockPush).toHaveBeenCalledWith('/pressings')
   })
+
+  it('defaults the sort select to Artist when no sort param is set', () => {
+    render(<FilterPanel artists={ARTISTS} formats={FORMATS} genres={GENRES} />)
+    expect(screen.getByDisplayValue('Sort: Artist')).toBeInTheDocument()
+  })
+
+  it('reflects sort=title from the URL', () => {
+    mockParams = new URLSearchParams('sort=title')
+    render(<FilterPanel artists={ARTISTS} formats={FORMATS} genres={GENRES} />)
+    expect(screen.getByDisplayValue('Sort: Title')).toBeInTheDocument()
+  })
+
+  it('pushes a new URL with sort=title when Title is selected', async () => {
+    const user = userEvent.setup()
+    render(<FilterPanel artists={ARTISTS} formats={FORMATS} genres={GENRES} />)
+    await user.selectOptions(screen.getByDisplayValue('Sort: Artist'), 'title')
+    expect(mockPush).toHaveBeenCalledWith('/pressings?sort=title')
+  })
+
+  it('removes the sort param when Artist is reselected', async () => {
+    mockParams = new URLSearchParams('sort=title')
+    const user = userEvent.setup()
+    render(<FilterPanel artists={ARTISTS} formats={FORMATS} genres={GENRES} />)
+    await user.selectOptions(screen.getByDisplayValue('Sort: Title'), 'artist')
+    expect(mockPush).toHaveBeenCalledWith('/pressings?')
+  })
 })

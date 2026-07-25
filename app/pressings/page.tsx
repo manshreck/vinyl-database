@@ -20,13 +20,14 @@ const conditionLabel: Record<string, string> = {
   S: 'S',
 }
 
-type SearchParams = Promise<{ artistId?: string; formatId?: string; genreId?: string }>
+type SearchParams = Promise<{ artistId?: string; formatId?: string; genreId?: string; sort?: string }>
 
 export default async function PressingsPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const { artistId, formatId, genreId } = await searchParams
+  const { artistId, formatId, genreId, sort } = await searchParams
+  const sortBy = sort === 'title' ? 'title' : 'artist'
 
   const [pressings, artists, formats, genres] = await Promise.all([
     prisma.pressing.findMany({
@@ -61,9 +62,13 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
     const aSortName = a.release.artists[0]?.artist.sortName ?? ''
     const bSortName = b.release.artists[0]?.artist.sortName ?? ''
     const artistCmp = artistSortKey(aSortName).localeCompare(artistSortKey(bSortName))
-    if (artistCmp !== 0) return artistCmp
     const titleCmp = a.release.title.localeCompare(b.release.title)
-    if (titleCmp !== 0) return titleCmp
+
+    const primary = sortBy === 'title' ? titleCmp : artistCmp
+    const secondary = sortBy === 'title' ? artistCmp : titleCmp
+
+    if (primary !== 0) return primary
+    if (secondary !== 0) return secondary
     return (a.pressingYear ?? 0) - (b.pressingYear ?? 0)
   })
 
@@ -125,8 +130,8 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
             <table className="w-full text-sm">
               <thead className="bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 text-left">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Artist</th>
+                  <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Format</th>
                   <th className="px-4 py-3 font-medium">Pressing Year</th>
                   <th className="px-4 py-3 font-medium">Label</th>
@@ -145,6 +150,16 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                       key={pressing.pressingId}
                       className="bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                     >
+                      <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                        {pressing.release.artists.map((ra, i) => (
+                          <span key={ra.artist.artistId}>
+                            {i > 0 && ', '}
+                            <Link href={`/artists/${ra.artist.artistId}`} className="hover:underline">
+                              {ra.artist.name}
+                            </Link>
+                          </span>
+                        ))}
+                      </td>
                       <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
                         <div className="flex items-center gap-3">
                           {pressing.release.coverImageUrl && (
@@ -169,16 +184,6 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                             </span>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
-                        {pressing.release.artists.map((ra, i) => (
-                          <span key={ra.artist.artistId}>
-                            {i > 0 && ', '}
-                            <Link href={`/artists/${ra.artist.artistId}`} className="hover:underline">
-                              {ra.artist.name}
-                            </Link>
-                          </span>
-                        ))}
                       </td>
                       <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                         {pressing.format.name}
