@@ -121,4 +121,38 @@ describe('session helpers', () => {
       expect(mockCookieStore.delete).toHaveBeenCalledWith('session')
     })
   })
+
+  // Component test: createSessionCookie and getSession tested independently above
+  // only prove each operation's own logic against a hardcoded stub. This chains them
+  // through the *same* cookie-store state to verify the cross-operation invariant the
+  // module actually depends on: the token createSessionCookie writes into the cookie
+  // hashes to the same value getSession looks up. (Discovered gap: nothing previously
+  // verified this pairing — each operation always had its hash faked independently.)
+  describe('createSessionCookie then getSession (lifecycle round-trip)', () => {
+    it('a session created by createSessionCookie is readable by getSession via the same cookie', async () => {
+      let issuedToken: string | undefined
+      let storedHash: string | undefined
+      mockCookieStore.set.mockImplementation((_name: string, token: string) => {
+        issuedToken = token
+      })
+      mockCreateSession.mockImplementation((_userId: number, hash: string) => {
+        storedHash = hash
+      })
+
+      await createSessionCookie(1)
+      expect(issuedToken).toBeDefined()
+
+      // Simulate the browser sending the cookie createSessionCookie just set.
+      mockCookieStore.get.mockReturnValue({ value: issuedToken })
+      // findSessionByTokenHash only "finds" the row if getSession hashes the cookie
+      // token the same way createSessionCookie did when it stored it.
+      mockFindSessionByTokenHash.mockImplementation((hash: string) => {
+        if (hash !== storedHash) return null
+        return { userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test', expiresAt: new Date() }
+      })
+
+      const session = await getSession()
+      expect(session).toEqual({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' })
+    })
+  })
 })

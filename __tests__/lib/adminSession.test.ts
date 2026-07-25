@@ -96,4 +96,33 @@ describe('admin session helpers', () => {
       expect(mockCookieStore.delete).toHaveBeenCalledWith('admin_session')
     })
   })
+
+  // Component test: the operations above are each tested against an independently
+  // faked hash. This chains createAdminSessionCookie into getAdminSession through the
+  // same cookie-store state to verify the cross-operation invariant: the token
+  // written to the cookie hashes to the same value looked up afterward.
+  describe('createAdminSessionCookie then getAdminSession (lifecycle round-trip)', () => {
+    it('a session created by createAdminSessionCookie is readable by getAdminSession via the same cookie', async () => {
+      let issuedToken: string | undefined
+      let storedHash: string | undefined
+      mockCookieStore.set.mockImplementation((_name: string, token: string) => {
+        issuedToken = token
+      })
+      mockCreateAdminSession.mockImplementation((hash: string) => {
+        storedHash = hash
+      })
+
+      await createAdminSessionCookie()
+      expect(issuedToken).toBeDefined()
+
+      // Simulate the browser sending the cookie createAdminSessionCookie just set.
+      mockCookieStore.get.mockReturnValue({ value: issuedToken })
+      mockFindAdminSession.mockImplementation((hash: string) => {
+        if (hash !== storedHash) return null
+        return { expiresAt: new Date() }
+      })
+
+      expect(await getAdminSession()).toBe(true)
+    })
+  })
 })
