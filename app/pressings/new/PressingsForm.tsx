@@ -84,6 +84,14 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
   const [retrievingImage, setRetrievingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
 
+  // Fields never auto-populated from Discogs — flagged red until the user fills them in
+  const [recordConditionTouched, setRecordConditionTouched] = useState(false)
+  const [sleeveConditionTouched, setSleeveConditionTouched] = useState(false)
+  const [purchasePriceTouched, setPurchasePriceTouched] = useState(false)
+  const [purchaseDateTouched, setPurchaseDateTouched] = useState(false)
+  const [currentValueTouched, setCurrentValueTouched] = useState(false)
+  const [currentValue, setCurrentValue] = useState('')
+
   const releaseDropdownRef = useRef<HTMLDivElement>(null)
   const artistDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -399,7 +407,12 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
             <div>
               <label className={labelClass}>Record condition</label>
-              <select name="recordCondition" required className={inputClass}>
+              <select
+                name="recordCondition"
+                required
+                className={attentionInputClass(recordConditionTouched)}
+                onChange={() => setRecordConditionTouched(true)}
+              >
                 <option value="">Select…</option>
                 {CONDITIONS.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -409,7 +422,11 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
             <div>
               <label className={labelClass}>Sleeve condition</label>
-              <select name="sleeveCondition" className={inputClass}>
+              <select
+                name="sleeveCondition"
+                className={attentionInputClass(sleeveConditionTouched)}
+                onChange={() => setSleeveConditionTouched(true)}
+              >
                 <option value="">None / unknown</option>
                 {CONDITIONS.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -462,17 +479,45 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
             <div>
               <label className={labelClass}>Purchase price</label>
-              <input name="purchasePrice" type="number" min={0} step="0.01" className={inputClass} placeholder="0.00" />
+              <input
+                name="purchasePrice"
+                type="number"
+                min={0}
+                step="0.01"
+                className={attentionInputClass(purchasePriceTouched)}
+                placeholder="0.00"
+                onChange={(e) => {
+                  setPurchasePriceTouched(true)
+                  if (!currentValueTouched) setCurrentValue(e.target.value)
+                }}
+              />
             </div>
 
             <div>
               <label className={labelClass}>Purchase date</label>
-              <input name="purchaseDate" type="date" className={inputClass} />
+              <input
+                name="purchaseDate"
+                type="date"
+                className={attentionInputClass(purchaseDateTouched)}
+                onChange={() => setPurchaseDateTouched(true)}
+              />
             </div>
 
             <div>
               <label className={labelClass}>Current value (insurance)</label>
-              <input name="currentValue" type="number" min={0} step="0.01" className={inputClass} placeholder="0.00" />
+              <input
+                name="currentValue"
+                type="number"
+                min={0}
+                step="0.01"
+                className={attentionInputClass(currentValueTouched)}
+                placeholder="0.00"
+                value={currentValue}
+                onChange={(e) => {
+                  setCurrentValue(e.target.value)
+                  setCurrentValueTouched(true)
+                }}
+              />
             </div>
           </div>
 
@@ -502,8 +547,16 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 }
 
 const labelClass = 'block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1'
-const inputClass =
-  'w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
+const inputBaseClass =
+  'w-full rounded-lg border bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
+const inputClass = `${inputBaseClass} border-zinc-200 dark:border-zinc-700`
+const inputAttentionClass = `${inputBaseClass} border-red-300 dark:border-red-800`
+
+/** Fields not auto-populated from Discogs get a pale red border until the user touches them. */
+function attentionInputClass(touched: boolean) {
+  return touched ? inputClass : inputAttentionClass
+}
+
 const dropdownClass =
   'absolute z-10 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden'
 const dropdownItemClass =
