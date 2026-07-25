@@ -4,7 +4,26 @@ A multi-user web application for managing a personal vinyl record collection, bu
 
 ## Prerequisites
 
-### Node.js
+This project requires the following package and framework installations:
+
+* Node.js (JavaScript runtime). Node.js includes npm and npx for managing and running Node package extensions
+* PostgreSQL (Database)
+* Prisma (installed via npm) for connecting Node.js code to PostgreSQL and generating and utilizing schemas.
+
+After installing these packages, you will need to perform the following setup tasks:
+
+* Seed and install an initial database
+* (Optional, but recommended) Obtain a Discogs API access token for accessing the Discogs record API
+* Set up environment variables for the database and discogs access
+* Generate the Prisma client (via npm)
+* Install the Jest testing framework and React testing library (via npm)
+
+Once you have installed everything and set up your environment, you can then run the test suite and run the
+application. The following sections walk you through this.
+
+## Installing Packages and Frameworks
+
+### Installing Node.js
 
 Node.js is the JavaScript runtime this project runs on. This project requires Node.js 18 or later.
 
@@ -34,7 +53,7 @@ Verify the installation (same command on both platforms):
 node --version
 ```
 
-### npm
+### Verifing npm and npx
 
 npm (the Node package manager) is bundled with Node.js — installing Node.js above already installs npm on both macOS and Windows, so there's nothing extra to do. Verify it's available:
 
@@ -42,19 +61,13 @@ npm (the Node package manager) is bundled with Node.js — installing Node.js ab
 npm --version
 ```
 
-### npx
-
 npx (used to run package binaries like `npx prisma ...` without a global install) has shipped with npm since npm 5.2, so it's already available on both macOS and Windows once Node.js is installed. Verify it's available:
 
 ```bash
 npx --version
 ```
 
-### Prisma
-
-Prisma is a project dependency, not a system-wide tool — running `npm install` in the [Project Setup](#project-setup) step below installs it automatically, identically on macOS and Windows. No separate installation is needed; the `npx prisma ...` commands used later in this guide work the same on both platforms.
-
-### PostgreSQL
+### Installing PostgreSQL
 
 **macOS** — install and start via [Homebrew](https://brew.sh):
 
@@ -74,27 +87,32 @@ winget install PostgreSQL.PostgreSQL
 
 If `psql` or `createdb` aren't recognized afterward, add PostgreSQL's `bin` directory to your `PATH` (e.g. `C:\Program Files\PostgreSQL\16\bin`). If you ever need to start or stop the service manually, use the **Services** app (`services.msc`) or `pg_ctl`, rather than macOS's `brew services`.
 
-## Database Setup
+### Setting Up the Databases
 
-This app uses two kinds of database:
+This app uses two kinds of databases, a single control database holding user accounts, and one "tenant" database per user for that user's record collection. Only the control database needs to be initialized manually:
 
-- **A control-plane database** (`vinyl_control`) — shared, holds accounts and sessions. Create it once:
+- **A control-plane database** (`vinyl_control`) is shared and holds accounts and sessions. Create it once:
 
   ```bash
   createdb vinyl_control
   ```
 
-  Its tables (`users`, `sessions`) are created automatically the first time the app connects — no schema file to load.
+  Its tables (`users`, `sessions`) are created automatically the first time the app connects; no schema file needs to load and no field seeds are needed.
 
-- **A tenant database per account** (`vinyl_user_<random>`) — created automatically when someone registers via `/register`. You don't create these by hand.
+- **A tenant database per account** (`vinyl_user_<random>`) is created automatically when someone registers via `/register`. You don't create these by hand.
 
-## Project Setup
 
-Install dependencies:
+### Obtain a Discogs API Token
 
-```bash
-npm install
-```
+To get a Discogs API token:
+
+1. Sign in (or create a free account) at [discogs.com](https://www.discogs.com).
+2. Go to **Settings → Developers** ([discogs.com/settings/developers](https://www.discogs.com/settings/developers)).
+3. Click **Generate new token** and keep it accessible — you'll paste it into the `.env` file's `DISCOGS_TOKEN` line in the next step.
+
+This is a personal access token tied to your Discogs account, not per-app-user credentials — every search request the app makes uses this single token server-side, so individual users of this app never need their own Discogs account. Discogs' free tier caps authenticated requests at 60/minute, shared across the whole app. TODO: this is sufficient for testing but will not scale. Before stress testing, per-user discog tokens will need to be stored and cached.
+
+### Create Environment Variables
 
 Create a `.env` file in the project root:
 
@@ -112,13 +130,13 @@ CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
 DISCOGS_TOKEN="your_discogs_personal_access_token"
 ```
 
-To get a Discogs token:
+### Generate Project Dependencies
 
-1. Sign in (or create a free account) at [discogs.com](https://www.discogs.com).
-2. Go to **Settings → Developers** ([discogs.com/settings/developers](https://www.discogs.com/settings/developers)).
-3. Click **Generate new token** and copy it into `DISCOGS_TOKEN` above.
+Install any needed dependencies by npm:
 
-This is a personal access token tied to your Discogs account, not per-app-user credentials — every search request the app makes uses this single token server-side, so individual users of this app never need their own Discogs account. Discogs' free tier caps authenticated requests at 60/minute, shared across the whole app.
+```bash
+npm install
+```
 
 Generate the Prisma client (used for tenant databases):
 
@@ -134,17 +152,13 @@ npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script >
 
 Existing tenant databases are **not** migrated automatically — that's a manual step per account today (see `DEVELOPER_GUIDE.md`).
 
-## Running Tests
-
-### Install test dependencies
-
 The test suite uses Jest and React Testing Library. These are development dependencies and only need to be installed once (they are included automatically if you ran `npm install` from the Project Setup step above, but can be added explicitly if needed):
 
 ```bash
 npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom @types/jest
 ```
 
-### Run the tests
+## Running the Tests
 
 Run the full suite once:
 
@@ -172,4 +186,6 @@ The suite covers utility functions, server actions, API route handlers, and inte
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. After registering (or logging in), you'll land on the collection list at `/pressings`.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. Store your username/password somewhere safe: passwords are hashed (not reversible) and there's no password-reset flow, so a lost password can't be recovered, even for a test account.
+
+After registering (or logging in), you'll land on the collection list at `/pressings`.
