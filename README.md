@@ -4,34 +4,59 @@ A multi-user web application for managing a personal vinyl record collection, bu
 
 ## Prerequisites
 
-### Node.js and npm
+### Node.js
 
-Node.js includes npm (the Node package manager). The recommended way to install Node.js on macOS is via [Homebrew](https://brew.sh).
+Node.js is the JavaScript runtime this project runs on. This project requires Node.js 18 or later.
 
-**Install Homebrew** (if not already installed):
+**macOS** — the recommended way is via [Homebrew](https://brew.sh):
 
 ```bash
+# Install Homebrew (if not already installed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
 
-**Install Node.js:**
-
-```bash
+# Install Node.js
 brew install node
 ```
 
-Verify the installation:
+**Windows** — download and run the LTS installer from [nodejs.org](https://nodejs.org), or install from the command line:
+
+```powershell
+# Using winget
+winget install OpenJS.NodeJS.LTS
+
+# Or using Chocolatey
+choco install nodejs-lts
+```
+
+Verify the installation (same command on both platforms):
 
 ```bash
 node --version
+```
+
+### npm
+
+npm (the Node package manager) is bundled with Node.js — installing Node.js above already installs npm on both macOS and Windows, so there's nothing extra to do. Verify it's available:
+
+```bash
 npm --version
 ```
 
-You should see version numbers for both. This project requires Node.js 18 or later.
+### npx
+
+npx (used to run package binaries like `npx prisma ...` without a global install) has shipped with npm since npm 5.2, so it's already available on both macOS and Windows once Node.js is installed. Verify it's available:
+
+```bash
+npx --version
+```
+
+### Prisma
+
+Prisma is a project dependency, not a system-wide tool — running `npm install` in the [Project Setup](#project-setup) step below installs it automatically, identically on macOS and Windows. No separate installation is needed; the `npx prisma ...` commands used later in this guide work the same on both platforms.
 
 ### PostgreSQL
 
-Install and start PostgreSQL:
+**macOS** — install and start via [Homebrew](https://brew.sh):
 
 ```bash
 brew install postgresql@16
@@ -39,6 +64,15 @@ echo 'export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 brew services start postgresql@16
 ```
+
+**Windows** — download and run the installer from [postgresql.org](https://www.postgresql.org/download/windows/) (or install from the command line), which registers PostgreSQL as a Windows service that starts automatically:
+
+```powershell
+# Using winget
+winget install PostgreSQL.PostgreSQL
+```
+
+If `psql` or `createdb` aren't recognized afterward, add PostgreSQL's `bin` directory to your `PATH` (e.g. `C:\Program Files\PostgreSQL\16\bin`). If you ever need to start or stop the service manually, use the **Services** app (`services.msc`) or `pg_ctl`, rather than macOS's `brew services`.
 
 ## Database Setup
 
