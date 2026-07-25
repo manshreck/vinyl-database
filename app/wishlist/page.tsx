@@ -3,10 +3,15 @@ import { requireSession } from '@/lib/session'
 import { artistSortKey } from '@/lib/artistSort'
 import Image from 'next/image'
 import Link from 'next/link'
+import Pagination from '@/app/components/Pagination'
+import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
 
-export default async function WishlistPage() {
+type SearchParams = Promise<{ page?: string }>
+
+export default async function WishlistPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
+  const { page } = await searchParams
 
   const items = await prisma.wishlistItem.findMany({
     include: {
@@ -29,6 +34,9 @@ export default async function WishlistPage() {
     if (artistCmp !== 0) return artistCmp
     return a.release.title.localeCompare(b.release.title)
   })
+
+  const { currentPage, totalPages } = resolvePage(page, items.length)
+  const pageItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -80,7 +88,7 @@ export default async function WishlistPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {items.map((item) => (
+                {pageItems.map((item) => (
                   <tr
                     key={item.wishlistItemId}
                     className="bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
@@ -149,6 +157,8 @@ export default async function WishlistPage() {
             </table>
           </div>
         )}
+
+        <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/wishlist" />
       </div>
     </div>
   )

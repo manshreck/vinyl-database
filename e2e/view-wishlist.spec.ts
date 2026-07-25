@@ -18,4 +18,27 @@ test.describe('View wishlist', () => {
     await expect(row).toContainText('Fleetwood Mac')
     await expect(row.getByRole('link', { name: 'Add to Collection' })).toBeVisible()
   })
+
+  test('caps the wishlist at 25 entries per page, with a link to further pages', async ({ page }) => {
+    const email = uniqueTestEmail('wishlist-pagination')
+    await registerNewUser(page, email, TEST_PASSWORD)
+
+    for (let i = 1; i <= 26; i++) {
+      const n = String(i).padStart(2, '0')
+      await seedWishlistItem(email, { title: `Pagination Test ${n}`, artistName: `Pagination Artist ${n}` })
+    }
+
+    await page.goto('/wishlist')
+
+    // Sorted by artist, so items 01–25 land on page 1 and 26 spills to page 2.
+    await expect(page.locator('tbody tr')).toHaveCount(25)
+    await expect(page.locator('tr', { hasText: 'Pagination Artist 01' })).toBeVisible()
+    await expect(page.locator('tr', { hasText: 'Pagination Artist 26' })).toHaveCount(0)
+
+    await page.getByRole('link', { name: 'Next' }).click()
+    await page.waitForURL(/[?&]page=2/)
+
+    await expect(page.locator('tbody tr')).toHaveCount(1)
+    await expect(page.locator('tr', { hasText: 'Pagination Artist 26' })).toBeVisible()
+  })
 })

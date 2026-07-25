@@ -5,6 +5,8 @@ import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import SearchForm from './SearchForm'
+import Pagination from '@/app/components/Pagination'
+import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
 
 const conditionLabel: Record<string, string> = {
   P: 'P', FR: 'FR', G: 'G',
@@ -30,6 +32,7 @@ type SearchParams = Promise<{
   artist?: string
   year?: string
   regex?: string
+  page?: string
 }>
 
 
@@ -37,13 +40,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const { title, artist, year, regex } = await searchParams
+  const { title, artist, year, regex, page } = await searchParams
 
   const useRegex = regex === '1'
   const hasSearch = title || artist || year
 
   let results: ResultRow[] = []
   let searchError: string | null = null
+  let totalCount = 0
+  let totalPages = 1
+  let currentPage = 1
 
   if (hasSearch) {
     // In regex mode use the pattern as-is; in wildcard mode wrap in .* for substring matching
@@ -78,6 +84,20 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       : Prisma.empty
 
     try {
+      const countRows = await prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM pressings p
+        JOIN releases r ON p.release_id = r.release_id
+        JOIN formats f  ON p.format_id  = f.format_id
+        ${artistJoin}
+        WHERE 1=1
+        ${titleCond}
+        ${yearCond}
+      `)
+      totalCount = Number(countRows[0]?.count ?? 0)
+      ;({ currentPage, totalPages } = resolvePage(page, totalCount))
+      const offset = (currentPage - 1) * PAGE_SIZE
+
       results = await prisma.$queryRaw<ResultRow[]>(Prisma.sql`
         SELECT
           p.pressing_id::int                   AS "pressingId",
@@ -103,6 +123,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         ${titleCond}
         ${yearCond}
         ORDER BY r.title ASC, p.pressing_year ASC NULLS LAST
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
       `)
     } catch (err) {
       // Most likely an invalid regex pattern
@@ -141,9 +162,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
         {hasSearch && !searchError && (
           <>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-              {results.length === 0
+              {totalCount === 0
                 ? 'No results.'
-                : `${results.length} result${results.length === 1 ? '' : 's'}`}
+                : totalPages > 1
+                  ? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount} results`
+                  : `${totalCount} result${totalCount === 1 ? '' : 's'}`}
             </p>
 
             {results.length > 0 && (
@@ -207,6 +230,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                 </table>
               </div>
             )}
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              basePath="/search"
+              searchParams={{ title, artist, year, regex }}
+            />
           </>
         )}
       </div>

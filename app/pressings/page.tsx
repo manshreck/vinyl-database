@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import FilterPanel from './FilterPanel'
 import ConditionInfo from './ConditionInfo'
+import Pagination from '@/app/components/Pagination'
+import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
 
 const conditionLabel: Record<string, string> = {
   P: 'P',
@@ -20,13 +22,19 @@ const conditionLabel: Record<string, string> = {
   S: 'S',
 }
 
-type SearchParams = Promise<{ artistId?: string; formatId?: string; genreId?: string; sort?: string }>
+type SearchParams = Promise<{
+  artistId?: string
+  formatId?: string
+  genreId?: string
+  sort?: string
+  page?: string
+}>
 
 export default async function PressingsPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const { artistId, formatId, genreId, sort } = await searchParams
+  const { artistId, formatId, genreId, sort, page } = await searchParams
   const sortBy = sort === 'title' ? 'title' : 'artist'
 
   const [pressings, artists, formats, genres] = await Promise.all([
@@ -71,6 +79,9 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
     if (secondary !== 0) return secondary
     return (a.pressingYear ?? 0) - (b.pressingYear ?? 0)
   })
+
+  const { currentPage, totalPages } = resolvePage(page, pressings.length)
+  const pagePressings = pressings.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -144,7 +155,7 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {pressings.map((pressing) => {
+                {pagePressings.map((pressing) => {
                   return (
                     <tr
                       key={pressing.pressingId}
@@ -227,6 +238,13 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
             </table>
           </div>
         )}
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          basePath="/pressings"
+          searchParams={{ artistId, formatId, genreId, sort }}
+        />
       </div>
     </div>
   )
