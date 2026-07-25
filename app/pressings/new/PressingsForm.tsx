@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { createPressing } from '@/app/actions/createPressing'
 
 const CONDITIONS = [
@@ -20,6 +21,7 @@ type ReleaseResult = {
   releaseId: number
   title: string
   originalReleaseYear: number
+  coverImageUrl: string | null
   artists: Array<{ artist: { name: string } }>
 }
 
@@ -78,6 +80,10 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
   const [selectedGenres, setSelectedGenres] = useState<number[]>(initialValues?.genreIds ?? [])
   const [pending, setPending] = useState(false)
 
+  const [coverImageUrl, setCoverImageUrl] = useState(initialValues?.coverImageUrl ?? null)
+  const [retrievingImage, setRetrievingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+
   const releaseDropdownRef = useRef<HTMLDivElement>(null)
   const artistDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -124,6 +130,26 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
     setReleaseResults([])
   }
 
+  async function retrieveCoverImage() {
+    setRetrievingImage(true)
+    setImageError(null)
+    try {
+      const params = new URLSearchParams({ title: releaseQuery, artist: artistQuery })
+      const res = await fetch(`/api/discogs/cover-image?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
+      if (data.coverImageUrl) {
+        setCoverImageUrl(data.coverImageUrl)
+      } else {
+        setImageError('No cover image found on Discogs for this release.')
+      }
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Could not retrieve a cover image.')
+    } finally {
+      setRetrievingImage(false)
+    }
+  }
+
   function selectArtist(a: ArtistResult) {
     setSelectedArtist(a)
     setArtistQuery(a.name)
@@ -154,14 +180,26 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
         {selectedRelease ? (
           <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
-            <div>
-              <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                {selectedRelease.title}
-                <span className="ml-2 text-sm text-zinc-400">({selectedRelease.originalReleaseYear})</span>
-              </p>
-              <p className="text-sm text-zinc-500">
-                {selectedRelease.artists.map((a) => a.artist.name).join(', ')}
-              </p>
+            <div className="flex items-center gap-4">
+              {selectedRelease.coverImageUrl && (
+                <Image
+                  src={selectedRelease.coverImageUrl}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="rounded-lg object-cover flex-shrink-0"
+                  unoptimized
+                />
+              )}
+              <div>
+                <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                  {selectedRelease.title}
+                  <span className="ml-2 text-sm text-zinc-400">({selectedRelease.originalReleaseYear})</span>
+                </p>
+                <p className="text-sm text-zinc-500">
+                  {selectedRelease.artists.map((a) => a.artist.name).join(', ')}
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -185,6 +223,32 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
               </button>
             </div>
 
+            <div className="flex items-center gap-4">
+              {coverImageUrl ? (
+                <Image
+                  src={coverImageUrl}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="rounded-lg object-cover flex-shrink-0"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex flex-col items-start gap-1 flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+                  <button
+                    type="button"
+                    onClick={retrieveCoverImage}
+                    disabled={retrievingImage}
+                    className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline disabled:opacity-50"
+                  >
+                    {retrievingImage ? 'Retrieving…' : 'Retrieve cover image'}
+                  </button>
+                </div>
+              )}
+              {imageError && <p className="text-xs text-red-600 dark:text-red-400">{imageError}</p>}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className={labelClass}>Title</label>
@@ -204,8 +268,8 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
               </div>
             </div>
 
-            {initialValues?.coverImageUrl && (
-              <input type="hidden" name="newReleaseCoverImageUrl" value={initialValues.coverImageUrl} />
+            {coverImageUrl && (
+              <input type="hidden" name="newReleaseCoverImageUrl" value={coverImageUrl} />
             )}
 
             {/* Artist search */}
