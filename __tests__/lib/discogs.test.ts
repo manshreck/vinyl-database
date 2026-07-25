@@ -47,6 +47,7 @@ describe('searchDiscogsReleases', () => {
             label: ['Columbia', 'Legacy'],
             catno: '88697680571',
             format: ['Vinyl', 'LP', 'Album'],
+            formats: [{ text: 'Blue, 180g' }],
             thumb: 'https://i.discogs.com/thumb.jpg',
           },
         ],
@@ -64,9 +65,37 @@ describe('searchDiscogsReleases', () => {
         label: 'Columbia',
         catno: '88697680571',
         formats: ['Vinyl', 'LP', 'Album'],
+        vinylColor: 'Blue',
         thumb: 'https://i.discogs.com/thumb.jpg',
       },
     ])
+  })
+
+  it('sets vinylColor to null when the format text has no color info', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        results: [
+          {
+            id: 1,
+            title: 'Some Release',
+            format: ['Vinyl', 'LP'],
+            formats: [{ text: 'Terre Haute Pressing' }],
+          },
+        ],
+      })
+    )
+
+    const [result] = await searchDiscogsReleases('x')
+    expect(result.vinylColor).toBeNull()
+  })
+
+  it('sets vinylColor to null when formats is absent from the raw result', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ results: [{ id: 1, title: 'Some Release', format: ['Vinyl', 'LP'] }] })
+    )
+
+    const [result] = await searchDiscogsReleases('x')
+    expect(result.vinylColor).toBeNull()
   })
 
   it('throws a DiscogsApiError when DISCOGS_TOKEN is not set', async () => {
@@ -105,7 +134,7 @@ describe('getDiscogsRelease', () => {
           artists: [{ name: 'Miles Davis' }],
           genres: ['Jazz'],
           labels: [{ name: 'Columbia', catno: '88697680571' }],
-          formats: [{ name: 'Vinyl', qty: '1', descriptions: ['LP', 'Album'] }],
+          formats: [{ name: 'Vinyl', qty: '1', descriptions: ['LP', 'Album'], text: 'Blue, 180g' }],
           notes: 'Some notes',
           images: [{ type: 'primary', uri: 'https://i.discogs.com/full.jpg' }],
         })
@@ -118,6 +147,7 @@ describe('getDiscogsRelease', () => {
     expect(release.originalReleaseYear).toBe(1959)
     expect(release.artists).toEqual(['Miles Davis'])
     expect(release.coverImageUrl).toBe('https://i.discogs.com/full.jpg')
+    expect(release.vinylColor).toBe('Blue')
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 

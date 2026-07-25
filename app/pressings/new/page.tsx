@@ -38,6 +38,7 @@ export default async function NewPressingPage({ searchParams }: { searchParams: 
         label: discogsValues.label,
         catalogNumber: discogsValues.catalogNumber,
         discCount: discogsValues.discCount,
+        vinylColor: discogsValues.vinylColor,
         coverImageUrl: discogsValues.coverImageUrl,
       }
     } catch (err) {

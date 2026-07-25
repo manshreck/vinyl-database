@@ -3,6 +3,7 @@ import {
   guessFormatName,
   guessGenreNames,
   guessDiscCount,
+  guessVinylColorFromFormatText,
   buildDiscogsInitialValues,
 } from '@/lib/discogsMapping'
 import type { DiscogsReleaseDetail } from '@/lib/discogs'
@@ -63,6 +64,30 @@ describe('guessDiscCount', () => {
   })
 })
 
+describe('guessVinylColorFromFormatText', () => {
+  it('extracts a single color', () => {
+    expect(guessVinylColorFromFormatText('Blue, 180g')).toBe('Blue')
+  })
+
+  it('keeps a multi-word color/finish segment intact', () => {
+    expect(guessVinylColorFromFormatText('Orange Transparent')).toBe('Orange Transparent')
+  })
+
+  it('joins multiple color segments', () => {
+    expect(guessVinylColorFromFormatText('Red, Clear, 180g')).toBe('Red, Clear')
+  })
+
+  it('returns null for pressing-plant notes with no color info', () => {
+    expect(guessVinylColorFromFormatText('Terre Haute Pressing')).toBeNull()
+  })
+
+  it('returns null for null or empty input', () => {
+    expect(guessVinylColorFromFormatText(null)).toBeNull()
+    expect(guessVinylColorFromFormatText(undefined)).toBeNull()
+    expect(guessVinylColorFromFormatText('')).toBeNull()
+  })
+})
+
 describe('buildDiscogsInitialValues', () => {
   const release: DiscogsReleaseDetail = {
     id: 123,
@@ -74,6 +99,7 @@ describe('buildDiscogsInitialValues', () => {
     genres: ['Jazz'],
     labels: [{ name: 'Columbia', catno: 'CS 8163' }],
     formats: [{ name: 'Vinyl', qty: '1', descriptions: ['LP', 'Album', 'Reissue'] }],
+    vinylColor: 'Blue',
     notes: 'Some notes',
     coverImageUrl: 'https://i.discogs.com/cover.jpg',
   }
@@ -89,6 +115,7 @@ describe('buildDiscogsInitialValues', () => {
       label: 'Columbia',
       catalogNumber: 'CS 8163',
       discCount: 1,
+      vinylColor: 'Blue',
       coverImageUrl: 'https://i.discogs.com/cover.jpg',
     })
   })

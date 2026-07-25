@@ -1,4 +1,4 @@
-import { cleanDiscogsArtistName } from './discogsMapping'
+import { cleanDiscogsArtistName, guessVinylColorFromFormatText } from './discogsMapping'
 
 const DISCOGS_API_BASE = 'https://api.discogs.com'
 const USER_AGENT = 'VinylDatabase/1.0 +https://github.com/manshreck/vinyl-database'
@@ -51,6 +51,7 @@ type RawSearchResult = {
   label?: string[]
   catno?: string
   format?: string[]
+  formats?: Array<{ text?: string }>
   thumb?: string
 }
 
@@ -62,6 +63,7 @@ export type DiscogsSearchResult = {
   label: string | null
   catno: string | null
   formats: string[]
+  vinylColor: string | null
   thumb: string | null
 }
 
@@ -81,6 +83,7 @@ export async function searchDiscogsReleases(query: string): Promise<DiscogsSearc
     label: r.label?.[0] ?? null,
     catno: r.catno ?? null,
     formats: r.format ?? [],
+    vinylColor: guessVinylColorFromFormatText(r.formats?.[0]?.text),
     thumb: r.thumb || null,
   }))
 }
@@ -95,7 +98,7 @@ type RawRelease = {
   artists?: Array<{ name: string }>
   genres?: string[]
   labels?: Array<{ name: string; catno?: string }>
-  formats?: Array<{ name: string; qty?: string; descriptions?: string[] }>
+  formats?: Array<{ name: string; qty?: string; descriptions?: string[]; text?: string }>
   images?: Array<{ type: string; uri: string }>
 }
 
@@ -113,6 +116,7 @@ export type DiscogsReleaseDetail = {
   genres: string[]
   labels: Array<{ name: string; catno: string | null }>
   formats: Array<{ name: string; qty: string | null; descriptions: string[] }>
+  vinylColor: string | null
   notes: string | null
   coverImageUrl: string | null
 }
@@ -153,6 +157,7 @@ export async function getDiscogsRelease(id: number): Promise<DiscogsReleaseDetai
       qty: f.qty ?? null,
       descriptions: f.descriptions ?? [],
     })),
+    vinylColor: guessVinylColorFromFormatText(release.formats?.[0]?.text),
     notes: release.notes ?? null,
     coverImageUrl: primaryImage?.uri ?? null,
   }

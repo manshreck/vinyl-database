@@ -115,6 +115,7 @@ export default async function DiscogsReleasePage({ params, searchParams }: Props
                       : null
                   }
                 />
+                <Field label="Vinyl color" value={release.vinylColor} />
                 {release.notes && (
                   <div className="col-span-2">
                     <Field label="Notes" value={release.notes} />

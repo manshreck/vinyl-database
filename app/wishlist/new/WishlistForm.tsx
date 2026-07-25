@@ -29,6 +29,7 @@ export type WishlistInitialValues = {
   label: string | null
   catalogNumber: string | null
   discCount: number
+  vinylColor: string | null
   coverImageUrl: string | null
 }
 
@@ -346,7 +347,12 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
 
             <div>
               <label className={labelClass}>Vinyl color</label>
-              <input name="vinylColor" className={inputClass} placeholder="e.g. Clear, Red, Blue/White Splatter (leave blank for standard black)" />
+              <input
+                name="vinylColor"
+                className={inputClass}
+                placeholder="e.g. Clear, Red, Blue/White Splatter (leave blank for standard black)"
+                defaultValue={initialValues?.vinylColor ?? ''}
+              />
             </div>
           </div>
 

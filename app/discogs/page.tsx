@@ -82,6 +82,11 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
                     <p className="font-medium text-zinc-900 dark:text-zinc-50 truncate">
                       {r.title}
                       {r.year && <span className="ml-2 text-sm text-zinc-400">({r.year})</span>}
+                      {r.vinylColor && (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-violet-100 dark:bg-violet-900 px-2 py-0.5 text-xs text-violet-700 dark:text-violet-300">
+                          {r.vinylColor}
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
                       {[r.formats.join(', '), r.country, r.label].filter(Boolean).join(' · ')}

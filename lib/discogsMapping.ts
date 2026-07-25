@@ -22,6 +22,32 @@ export function guessFormatName(formats: Array<{ descriptions: string[] }>): str
   return null
 }
 
+const VINYL_COLOR_KEYWORDS = [
+  'black', 'white', 'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink',
+  'grey', 'gray', 'brown', 'gold', 'silver', 'bronze', 'copper', 'clear',
+  'transparent', 'translucent', 'marbled', 'marble', 'splatter', 'swirl',
+  'splash', 'smoke', 'smokey', 'glow', 'neon', 'picture disc', 'picture',
+  'multicolor', 'multi-color', 'tri-color', 'glitter', 'metallic', 'opaque', 'milky',
+]
+
+/**
+ * Discogs' format "text" field is a free-text note (e.g. "Blue, 180g", "Orange Transparent",
+ * "Terre Haute Pressing") that isn't always about color. Splits on commas and keeps only the
+ * segments that look like a vinyl color/finish, dropping unrelated pressing-plant notes.
+ * Returns null when nothing looks like a color, rather than guessing wrong.
+ */
+export function guessVinylColorFromFormatText(text: string | null | undefined): string | null {
+  if (!text) return null
+  const colorSegments = text
+    .split(',')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .filter((segment) =>
+      VINYL_COLOR_KEYWORDS.some((keyword) => segment.toLowerCase().includes(keyword))
+    )
+  return colorSegments.length > 0 ? colorSegments.join(', ') : null
+}
+
 const GENRE_ALIASES: Record<string, string> = {
   electronic: 'Electronica',
 }
@@ -47,6 +73,7 @@ export type DiscogsInitialValues = {
   label: string | null
   catalogNumber: string | null
   discCount: number
+  vinylColor: string | null
   coverImageUrl: string | null
 }
 
@@ -62,6 +89,7 @@ export function buildDiscogsInitialValues(release: DiscogsReleaseDetail): Discog
     label: release.labels[0]?.name ?? null,
     catalogNumber: release.labels[0]?.catno ?? null,
     discCount: guessDiscCount(release.formats),
+    vinylColor: release.vinylColor,
     coverImageUrl: release.coverImageUrl,
   }
 }
