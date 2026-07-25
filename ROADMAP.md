@@ -129,6 +129,18 @@ Revisit once there's real traffic, not before:
   enough concurrent users to hit it.
 - Backups and a tested disaster-recovery restore — for both the control database and
   tenant databases.
+  - **On-demand per-tenant backup, to a local filesystem, is a smaller near-term piece
+    of this worth doing before the full DR story.** Recommended mechanism: shell out to
+    `pg_dump -Fc` against a single tenant's connection string — full-fidelity, reuses a
+    battle-tested tool instead of reimplementing table/FK-order export logic by hand.
+    Two shapes it could take, still undecided: (a) a standalone admin CLI script (e.g.
+    `npx tsx scripts/backupTenant.ts <email>`), run locally against whatever database
+    the connection string points at; or (b) a button on the `/admin` accounts page
+    (`app/admin/page.tsx`) that streams the dump back as a download. (b) is more
+    convenient but needs a host with a real filesystem and `pg_dump` available — not
+    true of Vercel's serverless functions — so it's naturally blocked on the hosting
+    decision in §0.2, whereas (a) works today, against local or remote Postgres, with
+    no hosting dependency at all.
 - Real performance/load testing once usage patterns are known, rather than guessed at.
 
 ---
