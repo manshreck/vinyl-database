@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createWishlistItem } from '@/app/actions/createWishlistItem'
@@ -52,11 +53,14 @@ function useDebounce(value: string, delay: number) {
 }
 
 export default function WishlistForm({ formats, genres, initialValues }: Props) {
+  const router = useRouter()
+
   // Release search
   const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? '')
   const [releaseResults, setReleaseResults] = useState<ReleaseResult[]>([])
   const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(null)
   const [creatingRelease, setCreatingRelease] = useState(Boolean(initialValues))
+  const [discogsQuery, setDiscogsQuery] = useState('')
   const debouncedReleaseQuery = useDebounce(releaseQuery, 300)
 
   // New release / artist fields
@@ -118,6 +122,11 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
     setReleaseResults([])
   }
 
+  function goToDiscogsSearch() {
+    const q = discogsQuery.trim()
+    router.push(`/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  }
+
   async function retrieveCoverImage() {
     setRetrievingImage(true)
     setImageError(null)
@@ -165,7 +174,7 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
 
       {/* ── Release section ── */}
       <section className="space-y-4">
-        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Release</h2>
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Add Pressing for Existing Release</h2>
 
         {selectedRelease ? (
           <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
@@ -354,6 +363,26 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
                 No results — create new release for &ldquo;{releaseQuery}&rdquo;
               </button>
             )}
+
+            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+              <label className={labelClass}>Search for Release on Discogs</label>
+              <div className="flex items-center gap-2">
+                <input
+                  className={inputClass}
+                  placeholder="e.g. Kind of Blue, Miles Davis"
+                  value={discogsQuery}
+                  onChange={(e) => setDiscogsQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToDiscogsSearch() } }}
+                />
+                <button
+                  type="button"
+                  onClick={goToDiscogsSearch}
+                  className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </section>
