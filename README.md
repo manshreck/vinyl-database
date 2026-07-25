@@ -87,6 +87,8 @@ winget install PostgreSQL.PostgreSQL
 
 If `psql` or `createdb` aren't recognized afterward, add PostgreSQL's `bin` directory to your `PATH` (e.g. `C:\Program Files\PostgreSQL\16\bin`). If you ever need to start or stop the service manually, use the **Services** app (`services.msc`) or `pg_ctl`, rather than macOS's `brew services`.
 
+## Setting Up the Application
+
 ### Setting Up the Databases
 
 This app uses two kinds of databases, a single control database holding user accounts, and one "tenant" database per user for that user's record collection. Only the control database needs to be initialized manually:
