@@ -237,6 +237,20 @@ To confirm the account was created, and to see every registered account at a gla
 2. Username: `admin`. Password: leave it **blank** — that's the default when `ADMIN_PASSWORD` isn't set in `.env` (see the Environment Variables section above); the dashboard itself displays a warning banner for as long as that remains true. Set `ADMIN_PASSWORD` in `.env` to a real password before this app is ever exposed beyond localhost.
 3. The dashboard (`/admin`) lists every registered account — email, created date, record count, last login. It's read-only; there's no way to create, edit, or delete an account from here (a user deletes their own account, if they choose to, from `/account`).
 
+### Updating the Admin Password
+
+There's no in-app form for this — the admin password isn't stored in a database at all, only as the `ADMIN_PASSWORD` environment variable — so updating it is a configuration change, not something you do by logging in and clicking something:
+
+1. Choose a new password.
+2. **Save it somewhere durable before doing anything else** — a password manager, not just memory. The app never stores or displays this password anywhere; if you lose it without saving it elsewhere first, the only way back in is to set a *new* `ADMIN_PASSWORD` yourself.
+3. Set `ADMIN_PASSWORD` in your `.env` file to the new value (or your hosting platform's environment variable settings, once this is deployed somewhere beyond localhost).
+4. Apply the change:
+   - **Local development** (`npm run dev`): picked up automatically — Next.js reloads `.env` changes on the fly, no restart needed.
+   - **Anywhere else** (`next start`, or however this ends up hosted): restart or redeploy the app. Outside of `next dev`, environment variables are only read once, at process startup.
+5. Log into [http://localhost:3000/admin/login](http://localhost:3000/admin/login) with the new password to confirm it took effect — the blank-password warning banner on `/admin` should also be gone.
+
+**Caution:** this password exists only as that one environment variable, with no database row and no recovery flow behind it. Anyone who can edit `.env` (or your hosting platform's environment configuration) can always set a new one, so guard access to that configuration as carefully as you'd guard the password itself.
+
 ### A Quick "Add a Record" Demo
 
 With a test account created and logged in, here's the fastest way to see the core workflow — logging a record you own into your collection:
