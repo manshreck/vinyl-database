@@ -87,6 +87,11 @@ export async function deleteUser(id: number): Promise<void> {
   await pool.query(`DELETE FROM users WHERE id = $1`, [id])
 }
 
+export async function updatePasswordHash(id: number, passwordHash: string): Promise<void> {
+  const pool = await ready()
+  await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, id])
+}
+
 export async function findUserByEmail(email: string): Promise<ControlUser | null> {
   const pool = await ready()
   const { rows } = await pool.query(

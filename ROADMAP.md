@@ -110,9 +110,10 @@ narrow, unauthenticated-by-cookie-context helpers, not a real API surface.
 
 ## 3. Mobile apps (React Native / Expo)
 
-- Stand up the Expo project; recreate the seven journeys already proven end-to-end on
-  web (`e2e/*.spec.ts` — create account, view/add/edit collection, add/view wishlist,
-  Discogs search-and-prefill) against the new API instead of Server Actions.
+- Stand up the Expo project; recreate the journeys already proven end-to-end on web
+  (`e2e/*.spec.ts` — create account, change password, delete account, view/add/edit
+  collection, add/view wishlist, Discogs search-and-prefill) against the new API
+  instead of Server Actions.
 - Mobile-specific concerns the web app doesn't have: secure on-device token storage,
   offline/error/retry states, app icons and store screenshots.
 - TestFlight (iOS) and an internal testing track (Android) before public submission.

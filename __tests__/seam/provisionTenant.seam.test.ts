@@ -20,19 +20,9 @@ import {
   dropTenantDatabase,
   generateDatabaseName,
 } from '@/lib/provisionTenant'
-import { adminConnectionString, tenantConnectionString } from '@/lib/dbUrls'
+import { tenantConnectionString } from '@/lib/dbUrls'
+import { databaseExists } from '@/test-support/db/scratchDatabase'
 import { FORMATS, GENRES } from '@/prisma/referenceData'
-
-async function databaseExists(name: string): Promise<boolean> {
-  const admin = new Client({ connectionString: adminConnectionString() })
-  await admin.connect()
-  try {
-    const { rows } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])
-    return rows.length > 0
-  } finally {
-    await admin.end()
-  }
-}
 
 async function queryTenant(name: string, sql: string) {
   const client = new Client({ connectionString: tenantConnectionString(name) })

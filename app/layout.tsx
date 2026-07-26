@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { logoutUser } from "@/app/actions/logoutUser";
 import "./globals.css";
@@ -35,6 +36,9 @@ export default async function RootLayout({
         {session && (
           <header className="flex items-center justify-end gap-4 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm text-zinc-500">
             <span>{session.email}</span>
+            <Link href="/account" className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline">
+              Account
+            </Link>
             <form action={logoutUser}>
               <button type="submit" className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline">
                 Log out

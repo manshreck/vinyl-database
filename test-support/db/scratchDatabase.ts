@@ -35,6 +35,18 @@ export function generateScratchDatabaseName(): string {
   return `${SCRATCH_PREFIX}${randomBytes(6).toString('hex')}`
 }
 
+/** Whether a database with this exact name exists on the Postgres server. Read-only, so no naming restriction — used to check both scratch and real vinyl_user_* names. */
+export async function databaseExists(name: string): Promise<boolean> {
+  const admin = new Client({ connectionString: adminConnectionString() })
+  await admin.connect()
+  try {
+    const { rows } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])
+    return rows.length > 0
+  } finally {
+    await admin.end()
+  }
+}
+
 /** Creates an empty scratch database on the local Postgres instance. Applies no schema. */
 export async function createScratchDatabase(name: string): Promise<void> {
   assertScratchName(name)

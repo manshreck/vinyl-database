@@ -116,7 +116,7 @@ Postgres via a per-test scratch database.
 | Test | Boundary | Covers |
 |---|---|---|
 | `provisionTenant.seam.test.ts` | `provisionTenant.ts` ↔ real Postgres | `createTenantDatabase` produces a DB with the expected tables and seeded formats/genres; the name regex rejects invalid input without touching Postgres; `dropTenantDatabase` removes it; a seeding failure triggers the internal rollback |
-| `controlDb.seam.test.ts` | `controlDb.ts` ↔ real Postgres | bootstrap SQL is idempotent when re-applied to an already-provisioned database; `createUser`/`findUserByEmail` round-trip; the unique-email constraint surfaces a real Postgres error; session and admin-session create/find/delete round-trip |
+| `controlDb.seam.test.ts` | `controlDb.ts` ↔ real Postgres | bootstrap SQL is idempotent when re-applied to an already-provisioned database; `createUser`/`findUserByEmail` round-trip; the unique-email constraint surfaces a real Postgres error; session and admin-session create/find/delete round-trip; `updatePasswordHash` actually changes the stored hash |
 | `tenantPrisma.seam.test.ts` | generated Prisma Client ↔ a DB built from `tenant-schema.sql` | a release/artist/pressing created through the real generated client is read back unchanged — covers schema drift between `schema.prisma` and `tenant-schema.sql`, which are maintained by hand |
 
 ### 2.4 System integration tests
@@ -130,6 +130,7 @@ load, emergent behavior of assembly), not just "more confidence." Lives in
 | Test | Assembles | Covers |
 |---|---|---|
 | `registration.system.test.ts` | `registerUser` action + real `controlDb` + real `provisionTenant` + a real scratch control database + a real tenant database | Success path: a user row and a working, queryable tenant database both exist afterward. Failure path: forcing tenant provisioning to fail and asserting the user row is genuinely gone from the real control database — not just that a rollback function was called |
+| `accountDeletion.system.test.ts` | `deleteAccount` action + real `controlDb` + real `provisionTenant` + a real scratch control database + a real tenant database | The inverse of registration: a successful deletion removes both the real user row and the real tenant database; an incorrect password leaves both genuinely intact |
 
 ### 2.5 End-to-end tests
 
@@ -142,6 +143,8 @@ layer — kept to a handful of journeys, each independently isolated. Uses
 | Spec | Journey |
 |---|---|
 | `create-account.spec.ts` | Register → land in a working, empty collection |
+| `change-password.spec.ts` | Change password on `/account` → old password no longer works, new one does |
+| `delete-account.spec.ts` | Delete account on `/account` → logged out, old credentials no longer work |
 | `view-collection.spec.ts` | Open the collection → see an existing pressing's details |
 | `add-record.spec.ts` | Blank "Add a record" form → manually create a release + pressing → see it listed |
 | `edit-record.spec.ts` | Edit an existing pressing → change reflected on the collection list |
@@ -239,8 +242,7 @@ costs a real request against the shared rate-limited token.
   pushing a change that touches `controlDb.ts`, `provisionTenant.ts`, the Prisma
   schema, or registration; `npm run test:contract` when `lib/discogs.ts` or
   `discogsMapping.ts` changes (or periodically, as a schedule); `npm run test:e2e`
-  before a release, or when a change plausibly affects one of the seven journeys in
-  §2.5.
+  before a release, or when a change plausibly affects one of the journeys in §2.5.
 
 **CI note**: no CI pipeline exists yet for this project. Once one is set up, CI — not
 this document — becomes the authority on what runs when (presubmit vs. post-submit vs.

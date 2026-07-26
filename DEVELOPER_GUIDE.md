@@ -893,6 +893,36 @@ npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script >
 
 **Auth forms and validation errors:** Unlike the collection-management actions (which always `redirect()` and never return a value — see [§4.3](#43-prisma-client--server-actions)), `registerUser`/`loginUser` return `{ error: string } | null` and are driven by `useActionState` in `RegisterForm`/`LoginForm`, so invalid input can be shown inline instead of failing silently.
 
+**Account management (`/account`):** A single page for the two account-lifecycle
+operations beyond registration, both gated behind re-entering the current password
+(`app/account/ChangePasswordForm.tsx`, `DeleteAccountForm.tsx`):
+
+- **`changePassword(_prevState, formData)`** — verifies the current password against
+  the session user's stored hash, then calls `controlDb.updatePasswordHash(id, hash)`.
+  Returns `{ error }` or `{ success: true }`; doesn't redirect, matching
+  `registerUser`/`loginUser`'s pattern of returning state for inline feedback rather
+  than always redirecting.
+- **`deleteAccount(_prevState, formData)`** — the inverse of registration, spanning the
+  same two databases. Drops the tenant database (`provisionTenant.dropTenantDatabase`)
+  **before** deleting the control-db row: if the drop fails, the account and session
+  are left fully intact and the error is just reported back, rather than a user row
+  surviving with no data behind it. `deleteUser` cascades the user's `sessions` rows
+  (`ON DELETE CASCADE`); `clearSessionCookie()` still runs afterward to clear the
+  browser-side cookie. Redirects to `/login`.
+
+**Gotcha this app's `DeleteAccountForm` hit, worth knowing before building another
+two-click confirm UI:** toggling a button's `type` between `"button"` and `"submit"`
+*inside* a `<form action={formAction}>` (the `useActionState` pattern) triggers a real
+submission on the very click that flips it — the click that should only reveal the
+confirm step ends up submitting immediately, before the user's second click. This
+doesn't reproduce in `@testing-library/user-event` well enough to catch by accident,
+but does in a real browser (Chromium via Playwright), which is exactly the class of
+gap the end-to-end layer exists to close (see `TESTING.md` §2.5). The fix, and the
+pattern `EditPressingForm.tsx`'s working two-click delete already used: keep the button
+always `type="button"`, and once confirmed, dispatch the action directly —
+`startTransition(() => formAction(formData))` — instead of relying on a native form
+submission at all.
+
 **Admin dashboard (`/admin`):** A separate, single hardcoded account (`admin` / `password`, in `app/actions/loginAdmin.ts` — placeholder credentials, meant to be replaced with something real before this app is exposed beyond localhost) for viewing all registered accounts. It's intentionally isolated from the per-user auth system:
 
 - A distinct `admin_session` cookie and `admin_sessions` table (`lib/adminSession.ts`, `lib/controlDb.ts`) — not the same session as regular users, and not tied to a `user_id` since there's only one admin.
