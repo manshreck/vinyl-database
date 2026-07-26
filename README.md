@@ -216,6 +216,35 @@ npm run test:e2e
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. Store your username/password somewhere safe: passwords are hashed (not reversible) and there's no password-reset flow, so a lost password can't be recovered, even for a test account.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. Store your username/password somewhere safe: passwords are hashed (not reversible) and there's no password-reset flow, so a lost password can't be recovered, even for a test account (you can change a known password from `/account` once logged in, but not recover a forgotten one).
 
 After registering (or logging in), you'll land on the collection list at `/pressings`.
+
+### Setting Up an Initial Test Account
+
+1. Go to [http://localhost:3000/register](http://localhost:3000/register) and create an account with any email address and a password of 8 or more characters. This provisions a dedicated, empty tenant database for that account automatically — no separate setup step needed.
+2. You'll land on the collection page (`/pressings`), empty until you add something — see the demo below.
+
+To confirm the account was created, and to see every registered account at a glance, log into the built-in admin dashboard:
+
+1. Go to [http://localhost:3000/admin/login](http://localhost:3000/admin/login).
+2. Username: `admin`. Password: leave it **blank** — this is a placeholder credential meant only for local development (see `lib/adminCredentials.ts`); the dashboard itself displays a warning banner for as long as that remains true. Replace it with a real password before this app is ever exposed beyond localhost.
+3. The dashboard (`/admin`) lists every registered account — email, created date, record count, last login. It's read-only; there's no way to create, edit, or delete an account from here (a user deletes their own account, if they choose to, from `/account`).
+
+### A Quick "Add a Record" Demo
+
+With a test account created and logged in, here's the fastest way to see the core workflow — logging a record you own into your collection:
+
+1. From the collection page (`/pressings`), click **Add record** (or go directly to `/pressings/new`).
+2. Under **Add Pressing for Existing Release**, type a title into the search box — e.g. `Kind of Blue`. Since this is a fresh account, nothing will match.
+3. Click **No results — create new release for "Kind of Blue"**. This reveals both the new-release form (prefilled with the title you typed) and, below it, the **Pressing details** section.
+4. Fill in the release fields:
+   - **Original release year**: `1959`
+   - **Artist**: type `Miles Davis` (a fresh account has no existing artists to autocomplete against, so this creates a new one)
+   - **Genres**: check `Jazz`
+5. Fill in at least the required pressing fields:
+   - **Format**: `LP`
+   - **Record condition**: pick any grade, e.g. `VG — Very Good`
+6. Click **Save pressing**. You're redirected back to `/pressings`, where "Kind of Blue" now appears in your collection.
+
+From here, try **Edit** on that row to change a detail, or use the **Search for Release on Discogs** box on `/pressings/new` to prefill a release's title, year, artist, and cover image from a real Discogs lookup instead of typing it all by hand.
