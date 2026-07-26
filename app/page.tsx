@@ -7,19 +7,19 @@ const cards = [
     href: '/pressings',
     title: 'View Collection',
     description: 'Browse the records you already own.',
-    image: '/view-collection.jpg',
+    image: '/view-collection.png',
   },
   {
     href: '/pressings/new',
     title: 'Add Record',
     description: 'Log a pressing you own into your collection.',
-    image: '/add-record.jpg',
+    image: '/add-record.png',
   },
   {
     href: '/wishlist',
     title: 'View Wishlist',
     description: 'See the pressings you’re hoping to pick up.',
-    image: '/view-wishlist.jpg',
+    image: '/view-wishlist.png',
   },
   {
     href: '/wishlist/new',
@@ -57,7 +57,7 @@ export default async function Home() {
                   alt=""
                   width={80}
                   height={80}
-                  className="block mx-auto mb-3 h-20 w-20 rounded-lg object-cover"
+                  className="block mx-auto mb-3 h-20 w-20 object-contain"
                 />
               )}
               <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
