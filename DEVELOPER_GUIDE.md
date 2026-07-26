@@ -860,6 +860,7 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 | `DATABASE_URL` | Yes | Connection **template** (host/port/credentials) — its database name is swapped out at runtime to reach the Postgres maintenance DB or any tenant's database. See `lib/dbUrls.ts`. |
 | `CONTROL_DATABASE_URL` | Yes | Full connection string to the shared control-plane database (`vinyl_control`), which holds `users` and `sessions`. |
 | `DISCOGS_TOKEN` | No | Personal access token for the Discogs API, used by `lib/discogs.ts` for the "Search Discogs" feature (`/discogs`). Generate one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) — it's a single server-side credential shared by every user of this app, not a per-user login. Without it, `/discogs` shows a "not configured" error but the rest of the app is unaffected. |
+| `ADMIN_PASSWORD` | No | Password for the `/admin` dashboard (username is always `admin`, hardcoded — see `lib/adminCredentials.ts`). Defaults to blank when unset, which is fine for local development; `/admin/page.tsx` shows a warning banner for as long as it stays blank. Set a real value before deploying anywhere beyond localhost. |
 
 ---
 
@@ -923,7 +924,7 @@ always `type="button"`, and once confirmed, dispatch the action directly —
 `startTransition(() => formAction(formData))` — instead of relying on a native form
 submission at all.
 
-**Admin dashboard (`/admin`):** A separate, single hardcoded account (`admin` / `password`, in `app/actions/loginAdmin.ts` — placeholder credentials, meant to be replaced with something real before this app is exposed beyond localhost) for viewing all registered accounts. It's intentionally isolated from the per-user auth system:
+**Admin dashboard (`/admin`):** A separate, single account (username `admin`, hardcoded — there's only ever one admin, so a second environment variable for it wouldn't buy anything) for viewing all registered accounts. Its password is `ADMIN_PASSWORD` (`lib/adminCredentials.ts`), read from the environment and defaulting to blank when unset — meant to be replaced with a real value before this app is exposed beyond localhost; `/admin/page.tsx` shows a warning banner for as long as it stays blank. It's intentionally isolated from the per-user auth system:
 
 - A distinct `admin_session` cookie and `admin_sessions` table (`lib/adminSession.ts`, `lib/controlDb.ts`) — not the same session as regular users, and not tied to a `user_id` since there's only one admin.
 - `proxy.ts`'s user-session check excludes `/admin*` entirely (its matcher is `(?!login|register|admin|...)`); `/admin/page.tsx` gates itself with `requireAdminSession()` instead.

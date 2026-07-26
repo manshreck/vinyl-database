@@ -39,9 +39,9 @@ export default async function AdminPage() {
         {ADMIN_PASSWORD === '' && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
             <strong>Warning:</strong> the admin account has a blank password. This is fine for local
-            testing, but production systems should never have a blank admin password — set{' '}
-            <code className="font-mono">ADMIN_PASSWORD</code> in <code className="font-mono">lib/adminCredentials.ts</code>{' '}
-            before deploying anywhere reachable by others.
+            testing, but production systems should never have a blank admin password — set the{' '}
+            <code className="font-mono">ADMIN_PASSWORD</code> environment variable in your{' '}
+            <code className="font-mono">.env</code> file before deploying anywhere reachable by others.
           </div>
         )}
 

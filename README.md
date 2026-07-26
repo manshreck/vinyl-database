@@ -131,6 +131,12 @@ CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
 # a new pressing/wishlist item from a result). Optional — the rest of the app works
 # without it, but /discogs will show a "not configured" error until it's set.
 DISCOGS_TOKEN="your_discogs_personal_access_token"
+
+# Password for the /admin dashboard (username is always "admin"). Optional — if
+# omitted, it defaults to blank, which is fine for local development but never for
+# anything reachable by others. Leave it out (or set it to "") to start with the
+# blank default; set a real value whenever you're ready to lock the dashboard down.
+ADMIN_PASSWORD="your_admin_password"
 ```
 
 ### Generate Project Dependencies
@@ -228,7 +234,7 @@ After registering (or logging in), you'll land on the collection list at `/press
 To confirm the account was created, and to see every registered account at a glance, log into the built-in admin dashboard:
 
 1. Go to [http://localhost:3000/admin/login](http://localhost:3000/admin/login).
-2. Username: `admin`. Password: leave it **blank** — this is a placeholder credential meant only for local development (see `lib/adminCredentials.ts`); the dashboard itself displays a warning banner for as long as that remains true. Replace it with a real password before this app is ever exposed beyond localhost.
+2. Username: `admin`. Password: leave it **blank** — that's the default when `ADMIN_PASSWORD` isn't set in `.env` (see the Environment Variables section above); the dashboard itself displays a warning banner for as long as that remains true. Set `ADMIN_PASSWORD` in `.env` to a real password before this app is ever exposed beyond localhost.
 3. The dashboard (`/admin`) lists every registered account — email, created date, record count, last login. It's read-only; there's no way to create, edit, or delete an account from here (a user deletes their own account, if they choose to, from `/account`).
 
 ### A Quick "Add a Record" Demo
