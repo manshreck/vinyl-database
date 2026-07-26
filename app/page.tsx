@@ -1,4 +1,5 @@
 import { requireSession } from '@/lib/session'
+import Image from 'next/image'
 import Link from 'next/link'
 
 const cards = [
@@ -6,16 +7,19 @@ const cards = [
     href: '/pressings',
     title: 'View Collection',
     description: 'Browse the records you already own.',
+    image: '/view-collection.jpg',
   },
   {
     href: '/pressings/new',
     title: 'Add Record',
     description: 'Log a pressing you own into your collection.',
+    image: '/add-record.jpg',
   },
   {
     href: '/wishlist',
     title: 'View Wishlist',
     description: 'See the pressings you’re hoping to pick up.',
+    image: '/view-wishlist.jpg',
   },
   {
     href: '/wishlist/new',
@@ -47,6 +51,15 @@ export default async function Home() {
               href={card.href}
               className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 hover:border-zinc-400 dark:hover:border-zinc-600 hover:shadow-sm transition-all"
             >
+              {card.image && (
+                <Image
+                  src={card.image}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="block mx-auto mb-3 h-20 w-20 rounded-lg object-cover"
+                />
+              )}
               <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
                 {card.title}
               </h2>

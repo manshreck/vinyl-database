@@ -18,6 +18,15 @@ export default async function proxy(request: NextRequest) {
 
 // /admin routes have their own session (admin_session) and are gated separately
 // by requireAdminSession() inside app/admin/page.tsx, not by this user-session check.
+//
+// Static files under public/ (images, etc.) must also be excluded — not just for the
+// browser's sake, but because next/image's optimizer re-fetches local image sources
+// through an internal server-side request that carries no cookies. Without this
+// exclusion, that internal fetch gets redirected to /login by this same proxy and
+// next/image fails with "The requested resource isn't a valid image," regardless of
+// whether the end user is actually logged in.
 export const config = {
-  matcher: ['/((?!login|register|admin|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!login|register|admin|_next/static|_next/image|favicon.ico|.*\\.(?:jpg|jpeg|png|gif|svg|webp|ico)$).*)',
+  ],
 }
