@@ -834,6 +834,8 @@ Prisma 7 datasource configuration. Reads `DATABASE_URL` from the environment (lo
 ### `next.config.ts`
 Minimal. No special redirects, rewrites, or environment variable exposure configured.
 
+**Gotcha: `next dev`'s image-optimization cache doesn't reliably notice a `public/` file changing on disk.** `next/image` caches its optimized output — both on disk (`.next/cache/images/`) and in the running dev server process's memory — keyed in a way that doesn't account for the *same path* now pointing at *different bytes*. Replace `public/some-image.png` with a new file of the same name and the page can keep serving the old one indefinitely, from every browser, with no code change needed to reproduce it — this isn't a browser-cache issue, so a normal reload won't fix it. The reliable fix: `rm -rf .next/cache/images` **and** kill/restart `npm run dev` — clearing the disk cache alone isn't enough while the old server process is still running. This came up repeatedly while iterating on `app/page.tsx`'s spot illustrations (see [§10](#10-authentication--multi-tenancy) for a related `next/image` gotcha involving `proxy.ts`) and will keep coming up for any workflow that replaces a same-named file in `public/` during development.
+
 ### `proxy.ts`
 Route protection (this Next.js version renamed Middleware to Proxy — see [§10](#10-authentication--multi-tenancy)). Runs on every request except `/login`, `/register`, and static assets; redirects to `/login` if the session cookie is absent.
 
