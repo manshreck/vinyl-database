@@ -4,14 +4,9 @@ import userEvent from '@testing-library/user-event'
 import WishlistForm from '@/app/wishlist/new/WishlistForm'
 
 const mockCreateWishlistItem = jest.fn()
-const mockPush = jest.fn()
 
 jest.mock('@/app/actions/createWishlistItem', () => ({
   createWishlistItem: (...args: unknown[]) => mockCreateWishlistItem(...args),
-}))
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
 }))
 
 describe('WishlistForm', () => {
@@ -20,16 +15,12 @@ describe('WishlistForm', () => {
     global.fetch = jest.fn().mockResolvedValue({ json: () => Promise.resolve([]) }) as unknown as typeof fetch
   })
 
-  // Regression: this is the same crash class fixed in PressingsForm — pressing
-  // Enter in the search box before a release is selected/created used to submit
-  // the form with none of the newRelease* fields present, crashing resolveReleaseId.
-  it('does not submit when Enter is pressed in the release search box before a release is chosen', async () => {
-    const user = userEvent.setup()
-    render(<WishlistForm formats={[]} genres={[]} />)
+  it('opens directly on the manual New release form with Pressing details already visible', () => {
+    const { container } = render(<WishlistForm formats={[]} genres={[]} />)
 
-    await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue{Enter}')
-
-    expect(mockCreateWishlistItem).not.toHaveBeenCalled()
+    expect(screen.getByText('New release')).toBeInTheDocument()
+    expect(screen.getByText('Pressing details')).toBeInTheDocument()
+    expect(container.querySelector('input[name="newReleaseTitle"]')).toHaveValue('')
   })
 
   it('submits once a release is created and required fields are filled', async () => {
@@ -38,9 +29,7 @@ describe('WishlistForm', () => {
       <WishlistForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
     )
 
-    await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-    await user.click(screen.getByText(/No results/))
-
+    await user.type(container.querySelector('input[name="newReleaseTitle"]') as HTMLInputElement, 'Kind of Blue')
     await user.type(
       container.querySelector('input[name="newReleaseYear"]') as HTMLInputElement,
       '1959'
@@ -53,34 +42,54 @@ describe('WishlistForm', () => {
     expect(mockCreateWishlistItem).toHaveBeenCalledTimes(1)
   })
 
-  describe('Search for Release on Discogs', () => {
-    it('navigates to /discogs with the entered query when Search is clicked', async () => {
-      const user = userEvent.setup()
-      render(<WishlistForm formats={[]} genres={[]} />)
+  it('pre-populates the Title field when given an initial title', () => {
+    render(<WishlistForm formats={[]} genres={[]} initialTitle="Kind of Blue" />)
 
-      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus Bob Marley')
-      await user.click(screen.getByText('Search'))
+    expect(screen.getByDisplayValue('Kind of Blue')).toBeInTheDocument()
+  })
 
-      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus Bob Marley'))
-    })
+  it('links Cancel on the New release form to /wishlist/search', () => {
+    render(<WishlistForm formats={[]} genres={[]} />)
 
-    it('navigates to /discogs with no query when the box is left blank', async () => {
-      const user = userEvent.setup()
-      render(<WishlistForm formats={[]} genres={[]} />)
+    expect(screen.getAllByText('Cancel')[0]).toHaveAttribute('href', '/wishlist/search')
+  })
 
-      await user.click(screen.getByText('Search'))
+  it('renders with a preselected release and shows Pressing details immediately', () => {
+    render(
+      <WishlistForm
+        formats={[]}
+        genres={[]}
+        selectedRelease={{
+          releaseId: 42,
+          title: 'Kind of Blue',
+          originalReleaseYear: 1959,
+          coverImageUrl: null,
+          artists: [{ artist: { name: 'Miles Davis' } }],
+        }}
+      />
+    )
 
-      expect(mockPush).toHaveBeenCalledWith('/discogs')
-    })
+    expect(screen.getByText('Kind of Blue')).toBeInTheDocument()
+    expect(screen.getByText('Miles Davis')).toBeInTheDocument()
+    expect(screen.getByText('Pressing details')).toBeInTheDocument()
+    expect(screen.queryByText('New release')).not.toBeInTheDocument()
+  })
 
-    it('submits on Enter without triggering local release creation', async () => {
-      const user = userEvent.setup()
-      render(<WishlistForm formats={[]} genres={[]} />)
+  it('links Change on a preselected release to /wishlist/search', () => {
+    render(
+      <WishlistForm
+        formats={[]}
+        genres={[]}
+        selectedRelease={{
+          releaseId: 42,
+          title: 'Kind of Blue',
+          originalReleaseYear: 1959,
+          coverImageUrl: null,
+          artists: [{ artist: { name: 'Miles Davis' } }],
+        }}
+      />
+    )
 
-      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus{Enter}')
-
-      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus'))
-      expect(mockCreateWishlistItem).not.toHaveBeenCalled()
-    })
+    expect(screen.getByText('Change')).toHaveAttribute('href', '/wishlist/search')
   })
 })

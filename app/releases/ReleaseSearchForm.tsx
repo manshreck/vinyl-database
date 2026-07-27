@@ -7,12 +7,15 @@ export default function ReleaseSearchForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const forParam = searchParams.get('for')
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const data = new FormData(e.currentTarget)
     const q = (data.get('q') as string).trim()
     const params = new URLSearchParams()
     if (q) params.set('q', q)
+    if (forParam) params.set('for', forParam)
     router.push(`/releases?${params.toString()}`)
   }
 
@@ -32,7 +35,7 @@ export default function ReleaseSearchForm() {
         Search
       </button>
       <Link
-        href="/releases"
+        href={forParam ? `/releases?for=${forParam}` : '/releases'}
         className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 whitespace-nowrap"
       >
         Clear

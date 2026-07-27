@@ -10,9 +10,7 @@ test.describe('Add to wishlist', () => {
 
     await page.goto('/wishlist/new')
 
-    await page.getByPlaceholder('Search by title…').fill('Blonde on Blonde')
-    await page.getByText(/No results/).click()
-
+    await page.locator('input[name="newReleaseTitle"]').fill('Blonde on Blonde')
     await page.locator('input[name="newReleaseYear"]').fill('1966')
     await page.getByPlaceholder('Search or enter artist name…').fill('Bob Dylan')
     await page.locator('select[name="formatId"]').selectOption({ label: 'LP' })

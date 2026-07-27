@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createWishlistItem } from '@/app/actions/createWishlistItem'
 
-type ReleaseResult = {
+export type ReleaseResult = {
   releaseId: number
   title: string
   originalReleaseYear: number
@@ -41,6 +40,8 @@ type Props = {
   formats: Format[]
   genres: Genre[]
   initialValues?: WishlistInitialValues
+  selectedRelease?: ReleaseResult
+  initialTitle?: string
 }
 
 function useDebounce(value: string, delay: number) {
@@ -52,16 +53,8 @@ function useDebounce(value: string, delay: number) {
   return debounced
 }
 
-export default function WishlistForm({ formats, genres, initialValues }: Props) {
-  const router = useRouter()
-
-  // Release search
-  const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? '')
-  const [releaseResults, setReleaseResults] = useState<ReleaseResult[]>([])
-  const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(null)
-  const [creatingRelease, setCreatingRelease] = useState(Boolean(initialValues))
-  const [discogsQuery, setDiscogsQuery] = useState('')
-  const debouncedReleaseQuery = useDebounce(releaseQuery, 300)
+export default function WishlistForm({ formats, genres, initialValues, selectedRelease, initialTitle }: Props) {
+  const releaseTitle = initialValues?.title ?? initialTitle ?? ''
 
   // New release / artist fields
   const [artistQuery, setArtistQuery] = useState(initialValues?.artistName ?? '')
@@ -76,16 +69,7 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
   const [retrievingImage, setRetrievingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
 
-  const releaseDropdownRef = useRef<HTMLDivElement>(null)
   const artistDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Search releases
-  useEffect(() => {
-    if (debouncedReleaseQuery.length < 2) { setReleaseResults([]); return }
-    fetch(`/api/releases/search?q=${encodeURIComponent(debouncedReleaseQuery)}`)
-      .then((r) => r.json())
-      .then(setReleaseResults)
-  }, [debouncedReleaseQuery])
 
   // Search artists
   useEffect(() => {
@@ -98,9 +82,6 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
   // Close dropdowns on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (releaseDropdownRef.current && !releaseDropdownRef.current.contains(e.target as Node)) {
-        setReleaseResults([])
-      }
       if (artistDropdownRef.current && !artistDropdownRef.current.contains(e.target as Node)) {
         setArtistResults([])
       }
@@ -109,29 +90,11 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  function selectRelease(r: ReleaseResult) {
-    setSelectedRelease(r)
-    setReleaseQuery('')
-    setReleaseResults([])
-    setCreatingRelease(false)
-  }
-
-  function startCreatingRelease() {
-    setSelectedRelease(null)
-    setCreatingRelease(true)
-    setReleaseResults([])
-  }
-
-  function goToDiscogsSearch() {
-    const q = discogsQuery.trim()
-    router.push(`/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`)
-  }
-
   async function retrieveCoverImage() {
     setRetrievingImage(true)
     setImageError(null)
     try {
-      const params = new URLSearchParams({ title: releaseQuery, artist: artistQuery })
+      const params = new URLSearchParams({ title: releaseTitle, artist: artistQuery })
       const res = await fetch(`/api/discogs/cover-image?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
@@ -161,21 +124,16 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!releaseSelected) return
     setPending(true)
     const data = new FormData(e.currentTarget)
     await createWishlistItem(data)
   }
-
-  const releaseSelected = selectedRelease || creatingRelease
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
 
       {/* ── Release section ── */}
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Add Pressing for Existing Release</h2>
-
         {selectedRelease ? (
           <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
             <div className="flex items-center gap-4">
@@ -199,26 +157,24 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => { setSelectedRelease(null); setCreatingRelease(false) }}
+            <Link
+              href="/wishlist/search"
               className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
             >
               Change
-            </button>
+            </Link>
             <input type="hidden" name="releaseId" value={selectedRelease.releaseId} />
           </div>
-        ) : creatingRelease ? (
+        ) : (
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New release</p>
-              <button
-                type="button"
-                onClick={() => setCreatingRelease(false)}
+              <Link
+                href="/wishlist/search"
                 className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               >
                 Cancel
-              </button>
+              </Link>
             </div>
 
             <div className="flex items-center gap-4">
@@ -250,7 +206,7 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className={labelClass}>Title</label>
-                <input name="newReleaseTitle" required className={inputClass} defaultValue={releaseQuery} />
+                <input name="newReleaseTitle" required className={inputClass} defaultValue={releaseTitle} />
               </div>
               <div>
                 <label className={labelClass}>Original release year</label>
@@ -320,79 +276,14 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
               </div>
             </div>
           </div>
-        ) : (
-          <div ref={releaseDropdownRef} className="relative">
-            <input
-              className={inputClass}
-              placeholder="Search by title…"
-              value={releaseQuery}
-              onChange={(e) => setReleaseQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
-            />
-            {releaseResults.length > 0 && (
-              <div className={dropdownClass}>
-                {releaseResults.map((r) => (
-                  <button
-                    key={r.releaseId}
-                    type="button"
-                    onClick={() => selectRelease(r)}
-                    className={dropdownItemClass}
-                  >
-                    <span className="font-medium">{r.title}</span>
-                    <span className="ml-2 text-zinc-400 text-xs">({r.originalReleaseYear})</span>
-                    <span className="ml-2 text-zinc-500 text-sm">
-                      {r.artists.map((a) => a.artist.name).join(', ')}
-                    </span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={startCreatingRelease}
-                  className="w-full px-4 py-2 text-left text-sm text-zinc-500 border-t border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  + Create new release for &ldquo;{releaseQuery}&rdquo;
-                </button>
-              </div>
-            )}
-            {releaseQuery.length >= 2 && releaseResults.length === 0 && (
-              <button
-                type="button"
-                onClick={startCreatingRelease}
-                className="mt-2 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline"
-              >
-                No results — create new release for &ldquo;{releaseQuery}&rdquo;
-              </button>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-              <label className={labelClass}>Search for Release on Discogs</label>
-              <div className="flex items-center gap-2">
-                <input
-                  className={inputClass}
-                  placeholder="e.g. Kind of Blue, Miles Davis"
-                  value={discogsQuery}
-                  onChange={(e) => setDiscogsQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToDiscogsSearch() } }}
-                />
-                <button
-                  type="button"
-                  onClick={goToDiscogsSearch}
-                  className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
-                >
-                  Search
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </section>
 
       {/* ── Pressing details ── */}
-      {releaseSelected && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Pressing details</h2>
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Pressing details</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Format</label>
               <select name="formatId" required className={inputClass} defaultValue={initialValues?.formatId ?? ''}>
@@ -465,22 +356,19 @@ export default function WishlistForm({ formats, genres, initialValues }: Props) 
             <textarea name="notes" rows={3} className={inputClass} placeholder="What you're looking for, price ceiling, condition preferences…" />
           </div>
         </section>
-      )}
 
-      {releaseSelected && (
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
-          >
-            {pending ? 'Saving…' : 'Save to wishlist'}
-          </button>
-          <Link href="/wishlist" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-            Cancel
-          </Link>
-        </div>
-      )}
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : 'Save to wishlist'}
+        </button>
+        <Link href="/wishlist" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+          Cancel
+        </Link>
+      </div>
     </form>
   )
 }

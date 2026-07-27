@@ -53,7 +53,7 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
               Collection
             </Link>
             <Link
-              href="/wishlist/new"
+              href="/wishlist/search"
               className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
             >
               Add to wishlist

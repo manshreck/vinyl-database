@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import ReleaseSearchForm from './ReleaseSearchForm'
 
-type SearchParams = Promise<{ q?: string }>
+type SearchParams = Promise<{ q?: string; for?: string }>
 
 export default async function ReleaseSearchPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const { q } = await searchParams
+  const { q, for: destination } = await searchParams
+  const isWishlist = destination === 'wishlist'
+  const newItemBasePath = isWishlist ? '/wishlist/new' : '/pressings/new'
   const hasSearch = !!q
 
   const releases = hasSearch
@@ -52,7 +54,9 @@ export default async function ReleaseSearchPage({ searchParams }: { searchParams
           <>
             {releases.length > 0 && (
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-                Your collection already contains at least one copy of the listed releases below. Select any of the following Releases to add a new unique pressing of that release to your collection.
+                {isWishlist
+                  ? 'Your collection already contains at least one copy of the listed releases below. Select any of the following Releases to add it to your wishlist.'
+                  : 'Your collection already contains at least one copy of the listed releases below. Select any of the following Releases to add a new unique pressing of that release to your collection.'}
               </p>
             )}
 
@@ -66,7 +70,7 @@ export default async function ReleaseSearchPage({ searchParams }: { searchParams
               {releases.map((r) => (
                 <Link
                   key={r.releaseId}
-                  href={`/pressings/new?releaseId=${r.releaseId}`}
+                  href={`${newItemBasePath}?releaseId=${r.releaseId}`}
                   className="flex items-center gap-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-zinc-400 dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                 >
                   {r.coverImageUrl ? (
@@ -101,13 +105,15 @@ export default async function ReleaseSearchPage({ searchParams }: { searchParams
 
             <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-                If none of these pressings suffice, you can simply create a new pressing from scratch.
+                {isWishlist
+                  ? 'If none of these match, you can simply add a new wishlist item from scratch.'
+                  : 'If none of these pressings suffice, you can simply create a new pressing from scratch.'}
               </p>
               <Link
-                href={`/pressings/new?title=${encodeURIComponent(q)}`}
+                href={`${newItemBasePath}?title=${encodeURIComponent(q)}`}
                 className="inline-block rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                + Create New Pressing
+                {isWishlist ? '+ Add New Wishlist Item' : '+ Create New Pressing'}
               </Link>
             </div>
           </>

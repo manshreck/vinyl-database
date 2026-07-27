@@ -2,9 +2,9 @@ import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
 import { getDiscogsRelease } from '@/lib/discogs'
 import { buildDiscogsInitialValues } from '@/lib/discogsMapping'
-import WishlistForm, { type WishlistInitialValues } from './WishlistForm'
+import WishlistForm, { type WishlistInitialValues, type ReleaseResult } from './WishlistForm'
 
-type SearchParams = Promise<{ discogsId?: string }>
+type SearchParams = Promise<{ discogsId?: string; releaseId?: string; title?: string }>
 
 export default async function NewWishlistItemPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession()
@@ -15,10 +15,27 @@ export default async function NewWishlistItemPage({ searchParams }: { searchPara
     prisma.genre.findMany({ orderBy: { name: 'asc' } }),
   ])
 
-  const { discogsId } = await searchParams
+  const { discogsId, releaseId, title } = await searchParams
   let initialValues: WishlistInitialValues | undefined
+  let selectedRelease: ReleaseResult | undefined
 
-  if (discogsId) {
+  if (releaseId) {
+    const release = await prisma.release.findUnique({
+      where: { releaseId: Number(releaseId) },
+      include: {
+        artists: { include: { artist: true }, orderBy: { artistOrder: 'asc' } },
+      },
+    })
+    if (release) {
+      selectedRelease = {
+        releaseId: release.releaseId,
+        title: release.title,
+        originalReleaseYear: release.originalReleaseYear,
+        coverImageUrl: release.coverImageUrl,
+        artists: release.artists.map((a) => ({ artist: { name: a.artist.name } })),
+      }
+    }
+  } else if (discogsId) {
     try {
       const release = await getDiscogsRelease(Number(discogsId))
       const discogsValues = buildDiscogsInitialValues(release)
@@ -56,7 +73,13 @@ export default async function NewWishlistItemPage({ searchParams }: { searchPara
           </h1>
         </div>
 
-        <WishlistForm formats={formats} genres={genres} initialValues={initialValues} />
+        <WishlistForm
+          formats={formats}
+          genres={genres}
+          initialValues={initialValues}
+          selectedRelease={selectedRelease}
+          initialTitle={title}
+        />
       </div>
     </div>
   )

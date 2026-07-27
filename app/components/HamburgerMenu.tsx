@@ -8,6 +8,8 @@ const links = [
   { href: '/pressings', label: 'View Collection' },
   { href: '/pressings/search', label: 'Add Record' },
   { href: '/wishlist', label: 'View Wishlist' },
+  { href: '/wishlist/search', label: 'Add Record to Wishlist' },
+  { href: '/insurance', label: 'Insurance Report' },
 ]
 
 export default function HamburgerMenu() {
