@@ -135,10 +135,16 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <Link
+                        href={`/wishlist/${item.wishlistItemId}/edit`}
+                        className="text-sm underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
+                      >
+                        Edit
+                      </Link>
                       <Link
                         href={`/wishlist/${item.wishlistItemId}/add-to-collection`}
-                        className="text-sm underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300 whitespace-nowrap"
+                        className="ml-4 text-sm underline font-bold text-sky-500 dark:text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
                       >
                         Add to Collection
                       </Link>

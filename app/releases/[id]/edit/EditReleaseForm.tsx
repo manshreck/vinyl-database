@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import Image from 'next/image'
 import { updateRelease, type FormState } from '@/app/actions/updateRelease'
 
 type Artist = { artistId: number; name: string; sortName: string }
@@ -83,7 +84,20 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
         </div>
 
         <div>
-          <label className={labelClass}>Cover image URL</label>
+          <label className={labelClass}>Cover image</label>
+          {release.coverImageUrl ? (
+            <Image
+              src={release.coverImageUrl}
+              alt=""
+              width={96}
+              height={96}
+              className="mb-2 rounded-lg object-cover"
+              unoptimized
+            />
+          ) : (
+            <div className="mb-2 h-24 w-24 rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+          )}
+          <label className={labelClass}>Replace cover image URL</label>
           <input
             name="coverImageUrl"
             className={inputClass}
