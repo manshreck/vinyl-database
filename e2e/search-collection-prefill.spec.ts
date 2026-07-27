@@ -12,8 +12,7 @@ test.describe('Search collection and prepopulate Add Record', () => {
 
     // Seed a release to search for.
     await page.goto('/pressings/new')
-    await page.getByPlaceholder('Search by title…').fill('Blue Train')
-    await page.getByText('+ Add Record Manually').click()
+    await page.locator('input[name="newReleaseTitle"]').fill('Blue Train')
     await page.locator('input[name="newReleaseYear"]').fill('1957')
     await page.getByPlaceholder('Search or enter artist name…').fill('John Coltrane')
     await page.locator('select[name="formatId"]').selectOption({ label: 'LP' })
@@ -21,8 +20,8 @@ test.describe('Search collection and prepopulate Add Record', () => {
     await page.getByRole('button', { name: 'Save pressing' }).click()
     await page.waitForURL('/pressings')
 
-    // Search the collection for it from a fresh Add Record page.
-    await page.goto('/pressings/new')
+    // Search the collection for it from the search launcher.
+    await page.goto('/pressings/search')
     await page.getByPlaceholder('Search by title…').fill('Blue Train')
     await page.getByRole('button', { name: 'Search' }).nth(1).click()
     await page.waitForURL(/\/releases\?q=/)

@@ -4,14 +4,9 @@ import userEvent from '@testing-library/user-event'
 import PressingsForm from '@/app/pressings/new/PressingsForm'
 
 const mockCreatePressing = jest.fn()
-const mockPush = jest.fn()
 
 jest.mock('@/app/actions/createPressing', () => ({
   createPressing: (...args: unknown[]) => mockCreatePressing(...args),
-}))
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
 }))
 
 describe('PressingsForm', () => {
@@ -20,15 +15,21 @@ describe('PressingsForm', () => {
     global.fetch = jest.fn().mockResolvedValue({ json: () => Promise.resolve([]) }) as unknown as typeof fetch
   })
 
+  it('opens directly on the manual New release form with Pressing details already visible', () => {
+    const { container } = render(<PressingsForm formats={[]} genres={[]} />)
+
+    expect(screen.getByText('New release')).toBeInTheDocument()
+    expect(screen.getByText('Pressing details')).toBeInTheDocument()
+    expect(container.querySelector('input[name="newReleaseTitle"]')).toHaveValue('')
+  })
+
   it('submits once a release is created and required fields are filled', async () => {
     const user = userEvent.setup()
     const { container } = render(
       <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
     )
 
-    await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-    await user.click(screen.getByText('+ Add Record Manually'))
-
+    await user.type(container.querySelector('input[name="newReleaseTitle"]') as HTMLInputElement, 'Kind of Blue')
     await user.type(
       container.querySelector('input[name="newReleaseYear"]') as HTMLInputElement,
       '1959'
@@ -45,12 +46,24 @@ describe('PressingsForm', () => {
     expect(mockCreatePressing).toHaveBeenCalledTimes(1)
   })
 
+  it('pre-populates the Title field when given an initial title', () => {
+    render(<PressingsForm formats={[]} genres={[]} initialTitle="Kind of Blue" />)
+
+    expect(screen.getByDisplayValue('Kind of Blue')).toBeInTheDocument()
+  })
+
+  it('links Cancel on the New release form to /pressings/search', () => {
+    render(<PressingsForm formats={[]} genres={[]} />)
+
+    expect(screen.getAllByText('Cancel')[0]).toHaveAttribute('href', '/pressings/search')
+  })
+
   it('renders with a preselected release and shows Pressing details immediately', () => {
     render(
       <PressingsForm
         formats={[]}
         genres={[]}
-        initialSelectedRelease={{
+        selectedRelease={{
           releaseId: 42,
           title: 'Kind of Blue',
           originalReleaseYear: 1959,
@@ -63,93 +76,35 @@ describe('PressingsForm', () => {
     expect(screen.getByText('Kind of Blue')).toBeInTheDocument()
     expect(screen.getByText('Miles Davis')).toBeInTheDocument()
     expect(screen.getByText('Pressing details')).toBeInTheDocument()
+    expect(screen.queryByText('New release')).not.toBeInTheDocument()
   })
 
-  it('opens directly on the manual New release form when given an initial title', () => {
-    render(<PressingsForm formats={[]} genres={[]} initialTitle="Kind of Blue" />)
+  it('links Change on a preselected release to /pressings/search', () => {
+    render(
+      <PressingsForm
+        formats={[]}
+        genres={[]}
+        selectedRelease={{
+          releaseId: 42,
+          title: 'Kind of Blue',
+          originalReleaseYear: 1959,
+          coverImageUrl: null,
+          artists: [{ artist: { name: 'Miles Davis' } }],
+        }}
+      />
+    )
 
-    expect(screen.getByText('New release')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Kind of Blue')).toBeInTheDocument()
-  })
-
-  describe('Search for Existing Release in Collection', () => {
-    it('navigates to /releases with the entered query when Search is clicked', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-      await user.click(screen.getAllByText('Search')[1])
-
-      expect(mockPush).toHaveBeenCalledWith('/releases?q=' + encodeURIComponent('Kind of Blue'))
-    })
-
-    it('navigates to /releases with no query when the box is left blank', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.click(screen.getAllByText('Search')[1])
-
-      expect(mockPush).toHaveBeenCalledWith('/releases')
-    })
-
-    it('navigates on Enter without triggering local release creation', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue{Enter}')
-
-      expect(mockPush).toHaveBeenCalledWith('/releases?q=' + encodeURIComponent('Kind of Blue'))
-      expect(mockCreatePressing).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('Search for Release on Discogs', () => {
-    it('navigates to /discogs with the entered query when Search is clicked', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus Bob Marley')
-      await user.click(screen.getAllByText('Search')[0])
-
-      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus Bob Marley'))
-    })
-
-    it('navigates to /discogs with no query when the box is left blank', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.click(screen.getAllByText('Search')[0])
-
-      expect(mockPush).toHaveBeenCalledWith('/discogs')
-    })
-
-    it('submits on Enter without triggering local release creation', async () => {
-      const user = userEvent.setup()
-      render(<PressingsForm formats={[]} genres={[]} />)
-
-      await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus{Enter}')
-
-      expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus'))
-      expect(mockCreatePressing).not.toHaveBeenCalled()
-    })
+    expect(screen.getByText('Change')).toHaveAttribute('href', '/pressings/search')
   })
 
   // Fields never auto-populated from Discogs (Record condition, Sleeve condition,
   // Purchase price, Purchase date, Current value) are flagged with a pale red border
   // until the user touches that specific field.
   describe('attention highlighting on never-auto-populated fields', () => {
-    async function renderWithReleaseCreated() {
-      const user = userEvent.setup()
+    it('starts all five fields highlighted red', () => {
       const { container } = render(
         <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
       )
-      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-      await user.click(screen.getByText('+ Add Record Manually'))
-      return { user, container }
-    }
-
-    it('starts all five fields highlighted red', async () => {
-      const { container } = await renderWithReleaseCreated()
 
       for (const selector of [
         'select[name="recordCondition"]',
@@ -163,7 +118,10 @@ describe('PressingsForm', () => {
     })
 
     it('clears the highlight on Record condition once it is changed, and no others', async () => {
-      const { user, container } = await renderWithReleaseCreated()
+      const user = userEvent.setup()
+      const { container } = render(
+        <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
+      )
 
       await user.selectOptions(container.querySelector('select[name="recordCondition"]') as HTMLSelectElement, 'VG')
 
@@ -173,7 +131,10 @@ describe('PressingsForm', () => {
     })
 
     it('clears the highlight on Purchase date once it is changed', async () => {
-      const { user, container } = await renderWithReleaseCreated()
+      const user = userEvent.setup()
+      const { container } = render(
+        <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
+      )
       const purchaseDate = container.querySelector('input[name="purchaseDate"]') as HTMLInputElement
 
       await user.type(purchaseDate, '2024-01-15')
@@ -183,18 +144,11 @@ describe('PressingsForm', () => {
   })
 
   describe('Purchase price mirroring into Current value', () => {
-    async function renderWithReleaseCreated() {
+    it('mirrors Purchase price into Current value as it is typed', async () => {
       const user = userEvent.setup()
       const { container } = render(
         <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
       )
-      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-      await user.click(screen.getByText('+ Add Record Manually'))
-      return { user, container }
-    }
-
-    it('mirrors Purchase price into Current value as it is typed', async () => {
-      const { user, container } = await renderWithReleaseCreated()
       const purchasePrice = container.querySelector('input[name="purchasePrice"]') as HTMLInputElement
       const currentValue = container.querySelector('input[name="currentValue"]') as HTMLInputElement
 
@@ -204,7 +158,10 @@ describe('PressingsForm', () => {
     })
 
     it('keeps Current value highlighted red even after it is auto-filled from Purchase price', async () => {
-      const { user, container } = await renderWithReleaseCreated()
+      const user = userEvent.setup()
+      const { container } = render(
+        <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
+      )
       const purchasePrice = container.querySelector('input[name="purchasePrice"]') as HTMLInputElement
       const currentValue = container.querySelector('input[name="currentValue"]') as HTMLInputElement
 
@@ -214,7 +171,10 @@ describe('PressingsForm', () => {
     })
 
     it('stops mirroring once Current value has been edited directly, and clears its highlight', async () => {
-      const { user, container } = await renderWithReleaseCreated()
+      const user = userEvent.setup()
+      const { container } = render(
+        <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
+      )
       const purchasePrice = container.querySelector('input[name="purchasePrice"]') as HTMLInputElement
       const currentValue = container.querySelector('input[name="currentValue"]') as HTMLInputElement
 

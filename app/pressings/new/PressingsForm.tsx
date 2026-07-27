@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { createPressing } from '@/app/actions/createPressing'
 
 const CONDITIONS = [
@@ -53,7 +53,7 @@ type Props = {
   formats: Format[]
   genres: Genre[]
   initialValues?: PressingInitialValues
-  initialSelectedRelease?: ReleaseResult
+  selectedRelease?: ReleaseResult
   initialTitle?: string
 }
 
@@ -66,16 +66,8 @@ function useDebounce(value: string, delay: number) {
   return debounced
 }
 
-export default function PressingsForm({ formats, genres, initialValues, initialSelectedRelease, initialTitle }: Props) {
-  const router = useRouter()
-
-  // Release search
-  const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? initialTitle ?? '')
-  const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(initialSelectedRelease ?? null)
-  const [creatingRelease, setCreatingRelease] = useState(
-    Boolean(initialValues) || (Boolean(initialTitle) && !initialSelectedRelease)
-  )
-  const [discogsQuery, setDiscogsQuery] = useState('')
+export default function PressingsForm({ formats, genres, initialValues, selectedRelease, initialTitle }: Props) {
+  const releaseTitle = initialValues?.title ?? initialTitle ?? ''
 
   // New release / artist fields
   const [artistQuery, setArtistQuery] = useState(initialValues?.artistName ?? '')
@@ -119,26 +111,11 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  function startCreatingRelease() {
-    setSelectedRelease(null)
-    setCreatingRelease(true)
-  }
-
-  function goToDiscogsSearch() {
-    const q = discogsQuery.trim()
-    router.push(`/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`)
-  }
-
-  function goToReleaseSearch() {
-    const q = releaseQuery.trim()
-    router.push(`/releases${q ? `?q=${encodeURIComponent(q)}` : ''}`)
-  }
-
   async function retrieveCoverImage() {
     setRetrievingImage(true)
     setImageError(null)
     try {
-      const params = new URLSearchParams({ title: releaseQuery, artist: artistQuery })
+      const params = new URLSearchParams({ title: releaseTitle, artist: artistQuery })
       const res = await fetch(`/api/discogs/cover-image?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
@@ -168,13 +145,10 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!releaseSelected) return
     setPending(true)
     const data = new FormData(e.currentTarget)
     await createPressing(data)
   }
-
-  const releaseSelected = selectedRelease || creatingRelease
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -204,26 +178,24 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => { setSelectedRelease(null); setCreatingRelease(false) }}
+            <Link
+              href="/pressings/search"
               className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
             >
               Change
-            </button>
+            </Link>
             <input type="hidden" name="releaseId" value={selectedRelease.releaseId} />
           </div>
-        ) : creatingRelease ? (
+        ) : (
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New release</p>
-              <button
-                type="button"
-                onClick={() => setCreatingRelease(false)}
+              <Link
+                href="/pressings/search"
                 className="text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               >
                 Cancel
-              </button>
+              </Link>
             </div>
 
             <div className="flex items-center gap-4">
@@ -255,7 +227,7 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className={labelClass}>Title</label>
-                <input name="newReleaseTitle" required className={inputClass} defaultValue={releaseQuery} />
+                <input name="newReleaseTitle" required className={inputClass} defaultValue={releaseTitle} />
               </div>
               <div>
                 <label className={labelClass}>Original release year</label>
@@ -325,65 +297,14 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
               </div>
             </div>
           </div>
-        ) : (
-          <div>
-            <label className={labelClass}>Search for Release on Discogs</label>
-            <div className="flex items-center gap-2">
-              <input
-                className={inputClass}
-                placeholder="e.g. Kind of Blue, Miles Davis"
-                value={discogsQuery}
-                onChange={(e) => setDiscogsQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToDiscogsSearch() } }}
-              />
-              <button
-                type="button"
-                onClick={goToDiscogsSearch}
-                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
-              >
-                Search
-              </button>
-            </div>
-
-            <h2 className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-              Search for Existing Release in Collection
-            </h2>
-            <div className="flex items-center gap-2">
-              <input
-                className={inputClass}
-                placeholder="Search by title…"
-                value={releaseQuery}
-                onChange={(e) => setReleaseQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToReleaseSearch() } }}
-              />
-              <button
-                type="button"
-                onClick={goToReleaseSearch}
-                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
-              >
-                Search
-              </button>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-              <button
-                type="button"
-                onClick={startCreatingRelease}
-                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                + Add Record Manually
-              </button>
-            </div>
-          </div>
         )}
       </section>
 
       {/* ── Pressing details ── */}
-      {releaseSelected && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Pressing details</h2>
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Pressing details</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Format</label>
               <select name="formatId" required className={inputClass} defaultValue={initialValues?.formatId ?? ''}>
@@ -528,22 +449,19 @@ export default function PressingsForm({ formats, genres, initialValues, initialS
             <textarea name="notes" rows={3} className={inputClass} placeholder="Matrix etchings, condition notes, provenance…" />
           </div>
         </section>
-      )}
 
-      {releaseSelected && (
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
-          >
-            {pending ? 'Saving…' : 'Save pressing'}
-          </button>
-          <a href="/pressings" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-            Cancel
-          </a>
-        </div>
-      )}
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : 'Save pressing'}
+        </button>
+        <a href="/pressings" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
+          Cancel
+        </a>
+      </div>
     </form>
   )
 }

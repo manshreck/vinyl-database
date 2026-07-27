@@ -10,7 +10,7 @@ const cards = [
     image: '/view-collection.png',
   },
   {
-    href: '/pressings/new',
+    href: '/pressings/search',
     title: 'Add Record',
     description: 'Log a pressing you own into your collection.',
     image: '/add-record.png',

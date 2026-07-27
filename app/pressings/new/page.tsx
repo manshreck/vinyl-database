@@ -68,29 +68,24 @@ export default async function NewPressingPage({ searchParams }: { searchParams: 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/add-record.png"
-              alt=""
-              width={56}
-              height={56}
-              className="h-14 w-14 object-contain"
-            />
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-              Add Record
-            </h1>
-          </div>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            You can search Discogs for a particular release/pressing or search an existing release within your collection from which to add new pressing. Each will produce a list of matches from which you can select a particular title that will prepopulate a New Pressing form.
-          </p>
+        <div className="mb-6 flex items-center gap-3">
+          <Image
+            src="/add-record.png"
+            alt=""
+            width={56}
+            height={56}
+            className="h-14 w-14 object-contain"
+          />
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            Add Record
+          </h1>
         </div>
 
         <PressingsForm
           formats={formats}
           genres={genres}
           initialValues={initialValues}
-          initialSelectedRelease={selectedRelease}
+          selectedRelease={selectedRelease}
           initialTitle={title}
         />
       </div>
