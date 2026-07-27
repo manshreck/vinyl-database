@@ -14,10 +14,13 @@ describe('DiscogsTokenForm', () => {
     jest.clearAllMocks()
   })
 
-  it('shows a message that no token is set when token is null', () => {
+  it('explains how to get a Discogs token regardless of whether one is set', () => {
     render(<DiscogsTokenForm token={null} />)
 
-    expect(screen.getByText(/No personal Discogs token is set/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/This app can look up releases on Discogs/)
+    ).toBeInTheDocument()
+    expect(screen.getByText('Log in to Discogs (or create a free account if you don’t have one).')).toBeInTheDocument()
   })
 
   it('shows a message that a token is set when token is present', () => {
@@ -36,7 +39,7 @@ describe('DiscogsTokenForm', () => {
   it('links out to the Discogs developer settings page', () => {
     render(<DiscogsTokenForm token={null} />)
 
-    expect(screen.getByText('Generate your own token on Discogs')).toHaveAttribute(
+    expect(screen.getByText('Settings → Developers')).toHaveAttribute(
       'href',
       'https://www.discogs.com/settings/developers'
     )

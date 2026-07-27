@@ -36,31 +36,38 @@ export default function DiscogsTokenForm({ token }: Props) {
         </p>
       )}
 
-      {hasToken ? (
-        <>
-          <p className="text-sm text-green-700 dark:text-green-400">
-            A discogs token is set for your account.
-          </p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            If you wish to replace this token with a new Discogs token, paste it below and click{' '}
-            <code className="text-xs font-medium">Replace Token</code>.
-          </p>
-        </>
-      ) : (
+      <p className={hasToken ? 'text-sm text-green-700 dark:text-green-400' : 'text-sm text-zinc-500 dark:text-zinc-400'}>
+        {hasToken ? 'A discogs token is set for your account.' : 'A discogs token is not set for your account.'}
+      </p>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        This app can look up releases on Discogs to save you from typing in every detail by hand.
+      </p>
+
+      {hasToken && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          No personal Discogs token is set — Discogs searches use this app’s shared token, which is rate-limited across every account.
-          {' '}
-          <a
-            href="https://www.discogs.com/settings/developers"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            Generate your own token on Discogs
-          </a>
-          , then paste it below.
+          If you wish to replace this token with a new Discogs token:
         </p>
       )}
+
+      <div>
+        <ol className="list-decimal list-inside text-sm text-zinc-500 dark:text-zinc-400 space-y-1">
+          <li>Log in to Discogs (or create a free account if you don&rsquo;t have one).</li>
+          <li>
+            Go to{' '}
+            <a
+              href="https://www.discogs.com/settings/developers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-zinc-800 dark:hover:text-zinc-200"
+            >
+              Settings → Developers
+            </a>
+            . (Opens in new tab.)
+          </li>
+          <li>Click Generate new token, then copy it.</li>
+          <li>Paste it below.</li>
+        </ol>
+      </div>
 
       {hasToken && (
         <div>
