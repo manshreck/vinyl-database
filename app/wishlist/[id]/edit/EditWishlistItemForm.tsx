@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { updateWishlistItem } from '@/app/actions/updateWishlistItem'
 import { deleteWishlistItem } from '@/app/actions/deleteWishlistItem'
 
@@ -20,6 +21,7 @@ type WishlistItem = {
   release: {
     title: string
     originalReleaseYear: number
+    coverImageUrl: string | null
     artists: Array<{ artist: { name: string } }>
   }
 }
@@ -33,6 +35,9 @@ export default function EditWishlistItemForm({
 }) {
   const [pending, setPending] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [coverImageUrl, setCoverImageUrl] = useState(item.release.coverImageUrl)
+  const [retrievingImage, setRetrievingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -49,17 +54,62 @@ export default function EditWishlistItemForm({
 
   const artists = item.release.artists.map((a) => a.artist.name).join(', ')
 
+  async function retrieveCoverImage() {
+    setRetrievingImage(true)
+    setImageError(null)
+    try {
+      const params = new URLSearchParams({ title: item.release.title, artist: artists })
+      const res = await fetch(`/api/discogs/cover-image?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
+      if (data.coverImageUrl) {
+        setCoverImageUrl(data.coverImageUrl)
+      } else {
+        setImageError('No cover image found on Discogs for this release.')
+      }
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Could not retrieve a cover image.')
+    } finally {
+      setRetrievingImage(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
 
       {/* Release (read-only, with edit link) */}
       <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
-        <div>
-          <p className="font-medium text-zinc-900 dark:text-zinc-50">
-            {item.release.title}
-            <span className="ml-2 text-sm text-zinc-400">({item.release.originalReleaseYear})</span>
-          </p>
-          <p className="text-sm text-zinc-500">{artists}</p>
+        <div className="flex items-center gap-4">
+          {coverImageUrl ? (
+            <Image
+              src={coverImageUrl}
+              alt=""
+              width={64}
+              height={64}
+              className="rounded-lg object-cover flex-shrink-0"
+              unoptimized
+            />
+          ) : (
+            <div className="flex flex-col items-start gap-1 flex-shrink-0">
+              <div className="w-16 h-16 rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+              <button
+                type="button"
+                onClick={retrieveCoverImage}
+                disabled={retrievingImage}
+                className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline disabled:opacity-50"
+              >
+                {retrievingImage ? 'Retrieving…' : 'Retrieve cover image'}
+              </button>
+            </div>
+          )}
+          <div>
+            <p className="font-medium text-zinc-900 dark:text-zinc-50">
+              {item.release.title}
+              <span className="ml-2 text-sm text-zinc-400">({item.release.originalReleaseYear})</span>
+            </p>
+            <p className="text-sm text-zinc-500">{artists}</p>
+            {imageError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{imageError}</p>}
+          </div>
         </div>
         <a
           href={`/releases/${item.releaseId}/edit?returnTo=/wishlist/${item.wishlistItemId}/edit`}
@@ -68,6 +118,7 @@ export default function EditWishlistItemForm({
           Edit release
         </a>
       </div>
+      <input type="hidden" name="coverImageUrl" value={coverImageUrl ?? ''} />
 
       {/* Pressing fields */}
       <section className="space-y-4">

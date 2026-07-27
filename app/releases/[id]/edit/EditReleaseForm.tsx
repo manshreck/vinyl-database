@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 import Image from 'next/image'
 import { updateRelease, type FormState } from '@/app/actions/updateRelease'
 
@@ -33,6 +33,11 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
   const currentGenreIds = release.genres.map((rg) => rg.genre.genreId)
   const [selectedGenres, setSelectedGenres] = useState<number[]>(currentGenreIds)
 
+  const [coverImageUrl, setCoverImageUrl] = useState(release.coverImageUrl ?? '')
+  const [retrievingImage, setRetrievingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
   function toggleGenre(id: number) {
     setSelectedGenres((prev) =>
       prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
@@ -41,8 +46,32 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
 
   const sortedArtists = [...release.artists].sort((a, b) => a.artistOrder - b.artistOrder)
 
+  async function retrieveCoverImage() {
+    setRetrievingImage(true)
+    setImageError(null)
+    try {
+      const formData = new FormData(formRef.current as HTMLFormElement)
+      const title = (formData.get('title') as string) ?? ''
+      const primaryArtistId = sortedArtists[0]?.artist.artistId
+      const artist = primaryArtistId ? (formData.get(`name[${primaryArtistId}]`) as string) ?? '' : ''
+      const params = new URLSearchParams({ title, artist })
+      const res = await fetch(`/api/discogs/cover-image?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
+      if (data.coverImageUrl) {
+        setCoverImageUrl(data.coverImageUrl)
+      } else {
+        setImageError('No cover image found on Discogs for this release.')
+      }
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : 'Could not retrieve a cover image.')
+    } finally {
+      setRetrievingImage(false)
+    }
+  }
+
   return (
-    <form action={formAction} className="space-y-8">
+    <form ref={formRef} action={formAction} className="space-y-8">
       {state?.error && (
         <p className="rounded-lg bg-red-50 dark:bg-red-950 px-4 py-2 text-sm text-red-700 dark:text-red-300">
           {state.error}
@@ -85,24 +114,38 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
 
         <div>
           <label className={labelClass}>Cover image</label>
-          {release.coverImageUrl ? (
-            <Image
-              src={release.coverImageUrl}
-              alt=""
-              width={96}
-              height={96}
-              className="mb-2 rounded-lg object-cover"
-              unoptimized
-            />
-          ) : (
-            <div className="mb-2 h-24 w-24 rounded-lg bg-zinc-100 dark:bg-zinc-800" />
-          )}
+          <div className="flex items-center gap-4 mb-2">
+            {isLikelyUrl(coverImageUrl) ? (
+              <Image
+                src={coverImageUrl}
+                alt=""
+                width={96}
+                height={96}
+                className="rounded-lg object-cover flex-shrink-0"
+                unoptimized
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex-shrink-0" />
+            )}
+            <div>
+              <button
+                type="button"
+                onClick={retrieveCoverImage}
+                disabled={retrievingImage}
+                className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline disabled:opacity-50"
+              >
+                {retrievingImage ? 'Retrieving…' : 'Retrieve cover image'}
+              </button>
+              {imageError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{imageError}</p>}
+            </div>
+          </div>
           <label className={labelClass}>Replace cover image URL</label>
           <input
             name="coverImageUrl"
             className={inputClass}
             placeholder="https://…"
-            defaultValue={release.coverImageUrl ?? ''}
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
           />
         </div>
       </section>
@@ -187,3 +230,13 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
 const labelClass = 'block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1'
 const inputClass =
   'w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
+
+/** Avoids handing next/image a half-typed URL (e.g. "https:") while the user is still typing. */
+function isLikelyUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}

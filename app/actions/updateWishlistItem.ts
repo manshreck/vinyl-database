@@ -10,8 +10,9 @@ export async function updateWishlistItem(id: number, formData: FormData) {
 
   const pressingYearRaw = formData.get('pressingYear') as string
   const vinylColorRaw = formData.get('vinylColor') as string
+  const coverImageUrl = ((formData.get('coverImageUrl') as string) ?? '').trim() || null
 
-  await prisma.wishlistItem.update({
+  const item = await prisma.wishlistItem.update({
     where: { wishlistItemId: id },
     data: {
       formatId: Number(formData.get('formatId')),
@@ -24,6 +25,13 @@ export async function updateWishlistItem(id: number, formData: FormData) {
       notes: (formData.get('notes') as string).trim() || null,
     },
   })
+
+  if (coverImageUrl) {
+    await prisma.release.update({
+      where: { releaseId: item.releaseId },
+      data: { coverImageUrl },
+    })
+  }
 
   redirect('/wishlist')
 }

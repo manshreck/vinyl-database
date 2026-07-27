@@ -38,7 +38,7 @@ export default async function EditWishlistItemPage({
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            Edit wishlist item
+            Edit Wishlist Item
           </h1>
         </div>
 

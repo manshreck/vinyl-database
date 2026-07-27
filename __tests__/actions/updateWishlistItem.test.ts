@@ -4,11 +4,13 @@
 import { updateWishlistItem } from '@/app/actions/updateWishlistItem'
 
 const mockUpdate = jest.fn()
+const mockReleaseUpdate = jest.fn()
 const mockRedirect = jest.fn()
 
 jest.mock('@/lib/prisma', () => ({
   getTenantPrisma: jest.fn().mockResolvedValue({
     wishlistItem: { update: (...args: unknown[]) => mockUpdate(...args) },
+    release: { update: (...args: unknown[]) => mockReleaseUpdate(...args) },
   }),
 }))
 
@@ -35,12 +37,14 @@ const BASE_FIELDS = {
   vinylColor: '',
   discCount: '1',
   notes: '',
+  coverImageUrl: '',
 }
 
 describe('updateWishlistItem', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUpdate.mockResolvedValue({})
+    mockUpdate.mockResolvedValue({ releaseId: 42 })
+    mockReleaseUpdate.mockResolvedValue({})
   })
 
   it('calls prisma.wishlistItem.update with the correct id', async () => {
@@ -101,5 +105,18 @@ describe('updateWishlistItem', () => {
   it('redirects to /wishlist after update', async () => {
     await updateWishlistItem(7, makeFormData(BASE_FIELDS))
     expect(mockRedirect).toHaveBeenCalledWith('/wishlist')
+  })
+
+  it('does not update the release when coverImageUrl is blank', async () => {
+    await updateWishlistItem(7, makeFormData(BASE_FIELDS))
+    expect(mockReleaseUpdate).not.toHaveBeenCalled()
+  })
+
+  it('updates the release cover image when coverImageUrl is provided', async () => {
+    await updateWishlistItem(7, makeFormData({ ...BASE_FIELDS, coverImageUrl: 'https://example.com/cover.jpg' }))
+    expect(mockReleaseUpdate).toHaveBeenCalledWith({
+      where: { releaseId: 42 },
+      data: { coverImageUrl: 'https://example.com/cover.jpg' },
+    })
   })
 })
