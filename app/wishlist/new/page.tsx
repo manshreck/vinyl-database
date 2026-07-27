@@ -1,6 +1,6 @@
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
-import { getDiscogsRelease } from '@/lib/discogs'
+import { getDiscogsRelease, resolveDiscogsToken } from '@/lib/discogs'
 import { buildDiscogsInitialValues } from '@/lib/discogsMapping'
 import WishlistForm, { type WishlistInitialValues, type ReleaseResult } from './WishlistForm'
 
@@ -37,7 +37,7 @@ export default async function NewWishlistItemPage({ searchParams }: { searchPara
     }
   } else if (discogsId) {
     try {
-      const release = await getDiscogsRelease(Number(discogsId))
+      const release = await getDiscogsRelease(Number(discogsId), resolveDiscogsToken(session.discogsToken))
       const discogsValues = buildDiscogsInitialValues(release)
       const matchedFormat = formats.find((f) => f.name === discogsValues.formatName)
       const matchedGenreIds = genres

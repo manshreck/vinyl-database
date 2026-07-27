@@ -16,6 +16,7 @@ const BOOTSTRAP_SQL = `
   );
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS discogs_token TEXT;
 
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
@@ -56,6 +57,7 @@ export type ControlSession = {
   userId: number
   email: string
   databaseName: string
+  discogsToken: string | null
   expiresAt: Date
 }
 
@@ -92,6 +94,11 @@ export async function updatePasswordHash(id: number, passwordHash: string): Prom
   await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, id])
 }
 
+export async function updateDiscogsToken(id: number, discogsToken: string | null): Promise<void> {
+  const pool = await ready()
+  await pool.query(`UPDATE users SET discogs_token = $1 WHERE id = $2`, [discogsToken, id])
+}
+
 export async function findUserByEmail(email: string): Promise<ControlUser | null> {
   const pool = await ready()
   const { rows } = await pool.query(
@@ -117,7 +124,7 @@ export async function createSession(
 export async function findSessionByTokenHash(tokenHash: string): Promise<ControlSession | null> {
   const pool = await ready()
   const { rows } = await pool.query(
-    `SELECT u.id AS "userId", u.email, u.database_name AS "databaseName", s.expires_at AS "expiresAt"
+    `SELECT u.id AS "userId", u.email, u.database_name AS "databaseName", u.discogs_token AS "discogsToken", s.expires_at AS "expiresAt"
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now()`,

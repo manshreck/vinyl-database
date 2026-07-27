@@ -3,6 +3,11 @@ import { cleanDiscogsArtistName, guessVinylColorFromFormatText } from './discogs
 const DISCOGS_API_BASE = 'https://api.discogs.com'
 const USER_AGENT = 'VinylDatabase/1.0 +https://github.com/manshreck/vinyl-database'
 
+/** A user's own Discogs token takes priority; the shared env token is the fallback. */
+export function resolveDiscogsToken(userToken: string | null | undefined): string | null {
+  return userToken ?? process.env.DISCOGS_TOKEN ?? null
+}
+
 export class DiscogsApiError extends Error {
   status: number
   rateLimited: boolean
@@ -15,10 +20,13 @@ export class DiscogsApiError extends Error {
   }
 }
 
-async function discogsFetch<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const token = process.env.DISCOGS_TOKEN
+async function discogsFetch<T>(
+  path: string,
+  token: string | null,
+  params: Record<string, string> = {}
+): Promise<T> {
   if (!token) {
-    throw new DiscogsApiError('Discogs search is not configured (missing DISCOGS_TOKEN).', 0)
+    throw new DiscogsApiError('Discogs search is not configured (missing a Discogs token).', 0)
   }
 
   const url = new URL(`${DISCOGS_API_BASE}${path}`)
@@ -68,8 +76,11 @@ export type DiscogsSearchResult = {
 }
 
 /** Searches Discogs' release catalog. Shows only the first page (25 results) — no pagination UI yet. */
-export async function searchDiscogsReleases(query: string): Promise<DiscogsSearchResult[]> {
-  const data = await discogsFetch<{ results: RawSearchResult[] }>('/database/search', {
+export async function searchDiscogsReleases(
+  query: string,
+  token: string | null
+): Promise<DiscogsSearchResult[]> {
+  const data = await discogsFetch<{ results: RawSearchResult[] }>('/database/search', token, {
     type: 'release',
     q: query,
     per_page: '25',
@@ -127,13 +138,13 @@ export type DiscogsReleaseDetail = {
  * the master's `year` (the earliest/original release) is used for `originalReleaseYear`
  * instead, falling back to the release's own year if there's no master or the lookup fails.
  */
-export async function getDiscogsRelease(id: number): Promise<DiscogsReleaseDetail> {
-  const release = await discogsFetch<RawRelease>(`/releases/${id}`)
+export async function getDiscogsRelease(id: number, token: string | null): Promise<DiscogsReleaseDetail> {
+  const release = await discogsFetch<RawRelease>(`/releases/${id}`, token)
 
   let originalReleaseYear = release.year ?? 0
   if (release.master_id) {
     try {
-      const master = await discogsFetch<RawMaster>(`/masters/${release.master_id}`)
+      const master = await discogsFetch<RawMaster>(`/masters/${release.master_id}`, token)
       if (master.year) originalReleaseYear = master.year
     } catch {
       // Fall back to the release's own year if the master lookup fails

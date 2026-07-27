@@ -1,14 +1,15 @@
 import { requireSession } from '@/lib/session'
-import { searchDiscogsReleases, type DiscogsSearchResult } from '@/lib/discogs'
+import { resolveDiscogsToken, searchDiscogsReleases, type DiscogsSearchResult } from '@/lib/discogs'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import DiscogsSearchForm from './DiscogsSearchForm'
+import DiscogsTokenNotice from '@/app/components/DiscogsTokenNotice'
 
 type SearchParams = Promise<{ q?: string }>
 
 export default async function DiscogsSearchPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireSession()
+  const session = await requireSession()
 
   const { q } = await searchParams
   const hasSearch = !!q
@@ -18,7 +19,7 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
 
   if (hasSearch) {
     try {
-      results = await searchDiscogsReleases(q)
+      results = await searchDiscogsReleases(q, resolveDiscogsToken(session.discogsToken))
     } catch (err) {
       searchError = err instanceof Error ? err.message : 'Discogs search failed.'
     }
@@ -34,6 +35,7 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
         </div>
 
         <div className="mb-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
+          {!session.discogsToken && <DiscogsTokenNotice />}
           <Suspense>
             <DiscogsSearchForm />
           </Suspense>

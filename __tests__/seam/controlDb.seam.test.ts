@@ -71,6 +71,7 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
       userId: user.id,
       email: user.email,
       databaseName: user.databaseName,
+      discogsToken: null,
       expiresAt,
     })
 
@@ -85,6 +86,18 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
 
     const updated = await controlDb.findUserByEmail('miles@example.com')
     expect(updated?.passwordHash).toBe('new-hashed-pw')
+  })
+
+  it('updates the stored Discogs token, and can clear it back to null', async () => {
+    const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+    const expiresAt = new Date(Date.now() + 60_000)
+    await controlDb.createSession(user.id, 'token-hash', expiresAt)
+
+    await controlDb.updateDiscogsToken(user.id, 'a-discogs-token')
+    expect((await controlDb.findSessionByTokenHash('token-hash'))?.discogsToken).toBe('a-discogs-token')
+
+    await controlDb.updateDiscogsToken(user.id, null)
+    expect((await controlDb.findSessionByTokenHash('token-hash'))?.discogsToken).toBeNull()
   })
 
   it('creates, finds, and deletes an admin session', async () => {

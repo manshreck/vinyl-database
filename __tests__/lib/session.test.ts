@@ -59,12 +59,14 @@ describe('session helpers', () => {
         userId: 1,
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
+        discogsToken: 'user-discogs-token',
         expiresAt: new Date(),
       })
       expect(await getSession()).toEqual({
         userId: 1,
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
+        discogsToken: 'user-discogs-token',
       })
     })
   })
@@ -85,6 +87,7 @@ describe('session helpers', () => {
         userId: 1,
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
+        discogsToken: null,
         expiresAt: new Date(),
       })
       const session = await requireSession()
@@ -148,11 +151,22 @@ describe('session helpers', () => {
       // token the same way createSessionCookie did when it stored it.
       mockFindSessionByTokenHash.mockImplementation((hash: string) => {
         if (hash !== storedHash) return null
-        return { userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test', expiresAt: new Date() }
+        return {
+          userId: 1,
+          email: 'a@b.com',
+          databaseName: 'vinyl_user_test',
+          discogsToken: null,
+          expiresAt: new Date(),
+        }
       })
 
       const session = await getSession()
-      expect(session).toEqual({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' })
+      expect(session).toEqual({
+        userId: 1,
+        email: 'a@b.com',
+        databaseName: 'vinyl_user_test',
+        discogsToken: null,
+      })
     })
   })
 })

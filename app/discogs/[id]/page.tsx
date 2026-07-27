@@ -1,5 +1,5 @@
 import { requireSession } from '@/lib/session'
-import { getDiscogsRelease } from '@/lib/discogs'
+import { getDiscogsRelease, resolveDiscogsToken } from '@/lib/discogs'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -21,7 +21,7 @@ type Props = {
 }
 
 export default async function DiscogsReleasePage({ params }: Props) {
-  await requireSession()
+  const session = await requireSession()
 
   const { id } = await params
   const discogsId = Number(id)
@@ -30,7 +30,7 @@ export default async function DiscogsReleasePage({ params }: Props) {
   let release: Awaited<ReturnType<typeof getDiscogsRelease>> | null = null
 
   try {
-    release = await getDiscogsRelease(discogsId)
+    release = await getDiscogsRelease(discogsId, resolveDiscogsToken(session.discogsToken))
   } catch (err) {
     error = err instanceof Error ? err.message : 'Could not load this Discogs release.'
   }

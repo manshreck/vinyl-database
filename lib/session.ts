@@ -19,6 +19,7 @@ export type Session = {
   userId: number
   email: string
   databaseName: string
+  discogsToken: string | null
 }
 
 /** Reads and validates the session cookie against the control DB. Returns null if absent/invalid/expired. */
@@ -30,7 +31,12 @@ export async function getSession(): Promise<Session | null> {
   const session = await findSessionByTokenHash(hashToken(token))
   if (!session) return null
 
-  return { userId: session.userId, email: session.email, databaseName: session.databaseName }
+  return {
+    userId: session.userId,
+    email: session.email,
+    databaseName: session.databaseName,
+    discogsToken: session.discogsToken,
+  }
 }
 
 /** Like getSession(), but redirects to /login when there is no valid session. For pages and Server Actions only. */

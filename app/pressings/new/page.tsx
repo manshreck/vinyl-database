@@ -1,6 +1,6 @@
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
-import { getDiscogsRelease } from '@/lib/discogs'
+import { getDiscogsRelease, resolveDiscogsToken } from '@/lib/discogs'
 import { buildDiscogsInitialValues } from '@/lib/discogsMapping'
 import Image from 'next/image'
 import PressingsForm, { type PressingInitialValues, type ReleaseResult } from './PressingsForm'
@@ -38,7 +38,7 @@ export default async function NewPressingPage({ searchParams }: { searchParams: 
     }
   } else if (discogsId) {
     try {
-      const release = await getDiscogsRelease(Number(discogsId))
+      const release = await getDiscogsRelease(Number(discogsId), resolveDiscogsToken(session.discogsToken))
       const discogsValues = buildDiscogsInitialValues(release)
       const matchedFormat = formats.find((f) => f.name === discogsValues.formatName)
       const matchedGenreIds = genres

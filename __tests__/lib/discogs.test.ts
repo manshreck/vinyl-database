@@ -1,35 +1,55 @@
 /**
  * @jest-environment node
  */
-import { searchDiscogsReleases, getDiscogsRelease, DiscogsApiError } from '@/lib/discogs'
+import { searchDiscogsReleases, getDiscogsRelease, resolveDiscogsToken, DiscogsApiError } from '@/lib/discogs'
 
 const mockFetch = jest.fn()
+const TOKEN = 'test-token'
 
 beforeEach(() => {
   jest.resetAllMocks()
-  process.env.DISCOGS_TOKEN = 'test-token'
   global.fetch = mockFetch as unknown as typeof fetch
-})
-
-afterEach(() => {
-  delete process.env.DISCOGS_TOKEN
 })
 
 function jsonResponse(body: unknown, ok = true, status = 200) {
   return { ok, status, json: () => Promise.resolve(body) }
 }
 
+describe('resolveDiscogsToken', () => {
+  const originalEnvToken = process.env.DISCOGS_TOKEN
+
+  afterEach(() => {
+    if (originalEnvToken === undefined) delete process.env.DISCOGS_TOKEN
+    else process.env.DISCOGS_TOKEN = originalEnvToken
+  })
+
+  it('prefers the user token over the shared env token', () => {
+    process.env.DISCOGS_TOKEN = 'shared-token'
+    expect(resolveDiscogsToken('user-token')).toBe('user-token')
+  })
+
+  it('falls back to the shared env token when the user has none', () => {
+    process.env.DISCOGS_TOKEN = 'shared-token'
+    expect(resolveDiscogsToken(null)).toBe('shared-token')
+  })
+
+  it('returns null when neither a user token nor the env token is set', () => {
+    delete process.env.DISCOGS_TOKEN
+    expect(resolveDiscogsToken(null)).toBeNull()
+  })
+})
+
 describe('searchDiscogsReleases', () => {
   it('requests the search endpoint with type=release, the query, and the token attached', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ results: [] }))
 
-    await searchDiscogsReleases('Kind of Blue')
+    await searchDiscogsReleases('Kind of Blue', TOKEN)
 
     const calledUrl = new URL(mockFetch.mock.calls[0][0])
     expect(calledUrl.pathname).toBe('/database/search')
     expect(calledUrl.searchParams.get('type')).toBe('release')
     expect(calledUrl.searchParams.get('q')).toBe('Kind of Blue')
-    expect(calledUrl.searchParams.get('token')).toBe('test-token')
+    expect(calledUrl.searchParams.get('token')).toBe(TOKEN)
 
     const options = mockFetch.mock.calls[0][1]
     expect(options.headers['User-Agent']).toMatch(/VinylDatabase/)
@@ -54,7 +74,7 @@ describe('searchDiscogsReleases', () => {
       })
     )
 
-    const results = await searchDiscogsReleases('Kind of Blue')
+    const results = await searchDiscogsReleases('Kind of Blue', TOKEN)
 
     expect(results).toEqual([
       {
@@ -85,7 +105,7 @@ describe('searchDiscogsReleases', () => {
       })
     )
 
-    const [result] = await searchDiscogsReleases('x')
+    const [result] = await searchDiscogsReleases('x', TOKEN)
     expect(result.vinylColor).toBeNull()
   })
 
@@ -94,19 +114,18 @@ describe('searchDiscogsReleases', () => {
       jsonResponse({ results: [{ id: 1, title: 'Some Release', format: ['Vinyl', 'LP'] }] })
     )
 
-    const [result] = await searchDiscogsReleases('x')
+    const [result] = await searchDiscogsReleases('x', TOKEN)
     expect(result.vinylColor).toBeNull()
   })
 
-  it('throws a DiscogsApiError when DISCOGS_TOKEN is not set', async () => {
-    delete process.env.DISCOGS_TOKEN
-    await expect(searchDiscogsReleases('x')).rejects.toThrow(DiscogsApiError)
+  it('throws a DiscogsApiError when no token is passed', async () => {
+    await expect(searchDiscogsReleases('x', null)).rejects.toThrow(DiscogsApiError)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('marks 429 responses as rate limited', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({}, false, 429))
-    await expect(searchDiscogsReleases('x')).rejects.toMatchObject({
+    await expect(searchDiscogsReleases('x', TOKEN)).rejects.toMatchObject({
       status: 429,
       rateLimited: true,
     })
@@ -114,7 +133,7 @@ describe('searchDiscogsReleases', () => {
 
   it('throws a generic DiscogsApiError on other non-2xx responses', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({}, false, 500))
-    await expect(searchDiscogsReleases('x')).rejects.toMatchObject({
+    await expect(searchDiscogsReleases('x', TOKEN)).rejects.toMatchObject({
       status: 500,
       rateLimited: false,
     })
@@ -141,7 +160,7 @@ describe('getDiscogsRelease', () => {
       )
       .mockResolvedValueOnce(jsonResponse({ id: 5460, title: 'Kind Of Blue', year: 1959 }))
 
-    const release = await getDiscogsRelease(2825456)
+    const release = await getDiscogsRelease(2825456, TOKEN)
 
     expect(release.pressingYear).toBe(2010)
     expect(release.originalReleaseYear).toBe(1959)
@@ -165,7 +184,7 @@ describe('getDiscogsRelease', () => {
       })
     )
 
-    const release = await getDiscogsRelease(1)
+    const release = await getDiscogsRelease(1, TOKEN)
 
     expect(release.originalReleaseYear).toBe(1999)
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -188,7 +207,7 @@ describe('getDiscogsRelease', () => {
       )
       .mockResolvedValueOnce(jsonResponse({}, false, 500))
 
-    const release = await getDiscogsRelease(1)
+    const release = await getDiscogsRelease(1, TOKEN)
 
     expect(release.originalReleaseYear).toBe(1999)
   })
@@ -207,8 +226,13 @@ describe('getDiscogsRelease', () => {
       })
     )
 
-    const release = await getDiscogsRelease(1)
+    const release = await getDiscogsRelease(1, TOKEN)
 
     expect(release.artists).toEqual(['Genesis'])
+  })
+
+  it('throws a DiscogsApiError when no token is passed', async () => {
+    await expect(getDiscogsRelease(1, null)).rejects.toThrow(DiscogsApiError)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })
