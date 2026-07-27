@@ -1,4 +1,5 @@
 import { requireSession } from '@/lib/session'
+import FullNameForm from './FullNameForm'
 import ChangePasswordForm from './ChangePasswordForm'
 import DiscogsTokenForm from './DiscogsTokenForm'
 import DeleteAccountForm from './DeleteAccountForm'
@@ -13,6 +14,11 @@ export default async function AccountPage() {
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Account</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{session.email}</p>
         </div>
+
+        <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Full Name</h2>
+          <FullNameForm fullName={session.fullName} />
+        </section>
 
         <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Change password</h2>
