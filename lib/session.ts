@@ -20,6 +20,7 @@ export type Session = {
   email: string
   databaseName: string
   discogsToken: string | null
+  fullName: string | null
 }
 
 /** Reads and validates the session cookie against the control DB. Returns null if absent/invalid/expired. */
@@ -36,6 +37,7 @@ export async function getSession(): Promise<Session | null> {
     email: session.email,
     databaseName: session.databaseName,
     discogsToken: session.discogsToken,
+    fullName: session.fullName,
   }
 }
 

@@ -72,6 +72,7 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
       email: user.email,
       databaseName: user.databaseName,
       discogsToken: null,
+      fullName: null,
       expiresAt,
     })
 
@@ -98,6 +99,18 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
 
     await controlDb.updateDiscogsToken(user.id, null)
     expect((await controlDb.findSessionByTokenHash('token-hash'))?.discogsToken).toBeNull()
+  })
+
+  it('updates the stored full name, and can clear it back to null', async () => {
+    const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+    const expiresAt = new Date(Date.now() + 60_000)
+    await controlDb.createSession(user.id, 'token-hash', expiresAt)
+
+    await controlDb.updateFullName(user.id, 'Miles Davis')
+    expect((await controlDb.findSessionByTokenHash('token-hash'))?.fullName).toBe('Miles Davis')
+
+    await controlDb.updateFullName(user.id, null)
+    expect((await controlDb.findSessionByTokenHash('token-hash'))?.fullName).toBeNull()
   })
 
   it('creates, finds, and deletes an admin session', async () => {

@@ -12,6 +12,11 @@ test.describe('Create a new account', () => {
     await page.locator('input[name="confirmPassword"]').fill(TEST_PASSWORD)
     await page.getByRole('button', { name: 'Create account' }).click()
 
+    // The post-registration setup wizard (real name / Discogs token) is optional —
+    // see e2e/complete-setup.spec.ts for the journey that actually fills it in.
+    await page.waitForURL('/setup')
+    await page.getByText('Skip for now').click()
+
     await page.waitForURL('/')
     await expect(page.getByRole('heading', { name: `Welcome back, ${email}` })).toBeVisible()
 

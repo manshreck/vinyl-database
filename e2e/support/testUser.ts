@@ -17,10 +17,12 @@ export function uniqueTestEmail(label: string): string {
 
 /**
  * Registers a brand-new account through the real /register form (the user's actual
- * entry point — see swe-e2e-testing) and waits for the resulting session to land on
- * the home page. Each journey that needs to be logged in calls this with its own
- * unique email, trading a little registration overhead per test for full isolation:
- * no shared account, no cross-spec ordering to reason about.
+ * entry point — see swe-e2e-testing), skips the post-registration setup wizard (real
+ * name / Discogs token — both optional, see e2e/complete-setup.spec.ts for that
+ * journey), and waits for the resulting session to land on the home page. Each
+ * journey that needs to be logged in calls this with its own unique email, trading a
+ * little registration overhead per test for full isolation: no shared account, no
+ * cross-spec ordering to reason about.
  */
 export async function registerNewUser(
   page: Page,
@@ -32,5 +34,7 @@ export async function registerNewUser(
   await page.locator('input[name="password"]').fill(password)
   await page.locator('input[name="confirmPassword"]').fill(password)
   await page.getByRole('button', { name: 'Create account' }).click()
+  await page.waitForURL('/setup')
+  await page.getByText('Skip for now').click()
   await page.waitForURL('/')
 }

@@ -60,6 +60,7 @@ describe('session helpers', () => {
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
         discogsToken: 'user-discogs-token',
+        fullName: 'Miles Davis',
         expiresAt: new Date(),
       })
       expect(await getSession()).toEqual({
@@ -67,6 +68,7 @@ describe('session helpers', () => {
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
         discogsToken: 'user-discogs-token',
+        fullName: 'Miles Davis',
       })
     })
   })
@@ -88,6 +90,7 @@ describe('session helpers', () => {
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
         discogsToken: null,
+        fullName: null,
         expiresAt: new Date(),
       })
       const session = await requireSession()
@@ -156,6 +159,7 @@ describe('session helpers', () => {
           email: 'a@b.com',
           databaseName: 'vinyl_user_test',
           discogsToken: null,
+          fullName: null,
           expiresAt: new Date(),
         }
       })
@@ -166,6 +170,7 @@ describe('session helpers', () => {
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
         discogsToken: null,
+        fullName: null,
       })
     })
   })
