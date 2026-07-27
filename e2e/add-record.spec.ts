@@ -11,7 +11,7 @@ test.describe('Add a record', () => {
     await page.goto('/pressings/new')
 
     await page.getByPlaceholder('Search by title…').fill('Blue Train')
-    await page.getByText(/No results/).click()
+    await page.getByText('+ Add Record Manually').click()
 
     await page.locator('input[name="newReleaseYear"]').fill('1957')
     await page.getByPlaceholder('Search or enter artist name…').fill('John Coltrane')

@@ -18,15 +18,12 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 type Props = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ q?: string }>
 }
 
-export default async function DiscogsReleasePage({ params, searchParams }: Props) {
+export default async function DiscogsReleasePage({ params }: Props) {
   await requireSession()
 
   const { id } = await params
-  const { q } = await searchParams
-  const backHref = `/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`
   const discogsId = Number(id)
 
   let error: string | null = null
@@ -41,15 +38,6 @@ export default async function DiscogsReleasePage({ params, searchParams }: Props
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link
-            href={backHref}
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            ← Results
-          </Link>
-        </div>
-
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}

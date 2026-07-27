@@ -28,13 +28,7 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <Link
-            href="/"
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            ← Home
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             Search Discogs
           </h1>
         </div>
@@ -63,7 +57,7 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
               {results.map((r) => (
                 <Link
                   key={r.id}
-                  href={`/discogs/${r.id}${q ? `?q=${encodeURIComponent(q)}` : ''}`}
+                  href={`/discogs/${r.id}`}
                   className="flex items-center gap-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-zinc-400 dark:hover:border-zinc-600 hover:shadow-sm transition-all"
                 >
                   {r.thumb ? (

@@ -33,13 +33,7 @@ export default async function InsurancePage() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <Link
-              href="/pressings"
-              className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-            >
-              ← Collection
-            </Link>
-            <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
               Insurance Report
             </h1>
             <p className="text-sm text-zinc-500 mt-1">

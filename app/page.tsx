@@ -21,16 +21,6 @@ const cards = [
     description: 'See the pressings you’re hoping to pick up.',
     image: '/view-wishlist.png',
   },
-  {
-    href: '/wishlist/new',
-    title: 'Add to Wishlist',
-    description: 'Track a pressing you’re hoping to pick up.',
-  },
-  {
-    href: '/discogs',
-    title: 'Search Discogs',
-    description: 'Look up a release and add it to your collection or wishlist.',
-  },
 ]
 
 export default async function Home() {

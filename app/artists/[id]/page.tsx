@@ -57,13 +57,7 @@ export default async function ArtistPage({
 
         {/* Header */}
         <div className="mb-8">
-          <Link
-            href="/pressings"
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            ← Collection
-          </Link>
-          <h1 className="mt-2 text-3xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-50">
             {artist.name}
           </h1>
           {artist.sortName !== artist.name && (

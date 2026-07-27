@@ -11,7 +11,14 @@ export async function GET(request: NextRequest) {
   if (q.length < 2) return NextResponse.json([])
 
   const releases = await prisma.release.findMany({
-    where: { title: { contains: q, mode: 'insensitive' } },
+    where: {
+      OR: [
+        { title: { contains: q, mode: 'insensitive' } },
+        { notes: { contains: q, mode: 'insensitive' } },
+        { artists: { some: { artist: { name: { contains: q, mode: 'insensitive' } } } } },
+        { genres: { some: { genre: { name: { contains: q, mode: 'insensitive' } } } } },
+      ],
+    },
     include: {
       artists: {
         include: { artist: true },

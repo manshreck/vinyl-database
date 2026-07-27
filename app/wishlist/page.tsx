@@ -41,14 +41,6 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-2">
-          <Link
-            href="/"
-            className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-          >
-            ← Home
-          </Link>
-        </div>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             Wishlist

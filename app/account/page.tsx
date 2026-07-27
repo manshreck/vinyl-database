@@ -1,5 +1,4 @@
 import { requireSession } from '@/lib/session'
-import Link from 'next/link'
 import ChangePasswordForm from './ChangePasswordForm'
 import DeleteAccountForm from './DeleteAccountForm'
 
@@ -10,10 +9,7 @@ export default async function AccountPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-8">
         <div>
-          <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200">
-            ← Home
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Account</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Account</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{session.email}</p>
         </div>
 

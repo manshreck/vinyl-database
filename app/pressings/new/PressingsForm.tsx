@@ -18,7 +18,7 @@ const CONDITIONS = [
   { value: 'S', label: 'S — Sealed' },
 ]
 
-type ReleaseResult = {
+export type ReleaseResult = {
   releaseId: number
   title: string
   originalReleaseYear: number
@@ -53,6 +53,8 @@ type Props = {
   formats: Format[]
   genres: Genre[]
   initialValues?: PressingInitialValues
+  initialSelectedRelease?: ReleaseResult
+  initialTitle?: string
 }
 
 function useDebounce(value: string, delay: number) {
@@ -64,16 +66,16 @@ function useDebounce(value: string, delay: number) {
   return debounced
 }
 
-export default function PressingsForm({ formats, genres, initialValues }: Props) {
+export default function PressingsForm({ formats, genres, initialValues, initialSelectedRelease, initialTitle }: Props) {
   const router = useRouter()
 
   // Release search
-  const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? '')
-  const [releaseResults, setReleaseResults] = useState<ReleaseResult[]>([])
-  const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(null)
-  const [creatingRelease, setCreatingRelease] = useState(Boolean(initialValues))
+  const [releaseQuery, setReleaseQuery] = useState(initialValues?.title ?? initialTitle ?? '')
+  const [selectedRelease, setSelectedRelease] = useState<ReleaseResult | null>(initialSelectedRelease ?? null)
+  const [creatingRelease, setCreatingRelease] = useState(
+    Boolean(initialValues) || (Boolean(initialTitle) && !initialSelectedRelease)
+  )
   const [discogsQuery, setDiscogsQuery] = useState('')
-  const debouncedReleaseQuery = useDebounce(releaseQuery, 300)
 
   // New release / artist fields
   const [artistQuery, setArtistQuery] = useState(initialValues?.artistName ?? '')
@@ -96,16 +98,7 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
   const [currentValueTouched, setCurrentValueTouched] = useState(false)
   const [currentValue, setCurrentValue] = useState('')
 
-  const releaseDropdownRef = useRef<HTMLDivElement>(null)
   const artistDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Search releases
-  useEffect(() => {
-    if (debouncedReleaseQuery.length < 2) { setReleaseResults([]); return }
-    fetch(`/api/releases/search?q=${encodeURIComponent(debouncedReleaseQuery)}`)
-      .then((r) => r.json())
-      .then(setReleaseResults)
-  }, [debouncedReleaseQuery])
 
   // Search artists
   useEffect(() => {
@@ -118,9 +111,6 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
   // Close dropdowns on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (releaseDropdownRef.current && !releaseDropdownRef.current.contains(e.target as Node)) {
-        setReleaseResults([])
-      }
       if (artistDropdownRef.current && !artistDropdownRef.current.contains(e.target as Node)) {
         setArtistResults([])
       }
@@ -129,22 +119,19 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  function selectRelease(r: ReleaseResult) {
-    setSelectedRelease(r)
-    setReleaseQuery('')
-    setReleaseResults([])
-    setCreatingRelease(false)
-  }
-
   function startCreatingRelease() {
     setSelectedRelease(null)
     setCreatingRelease(true)
-    setReleaseResults([])
   }
 
   function goToDiscogsSearch() {
     const q = discogsQuery.trim()
     router.push(`/discogs${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+  }
+
+  function goToReleaseSearch() {
+    const q = releaseQuery.trim()
+    router.push(`/releases${q ? `?q=${encodeURIComponent(q)}` : ''}`)
   }
 
   async function retrieveCoverImage() {
@@ -194,8 +181,6 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
 
       {/* ── Release section ── */}
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Add Pressing for Existing Release</h2>
-
         {selectedRelease ? (
           <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
             <div className="flex items-center gap-4">
@@ -341,67 +326,53 @@ export default function PressingsForm({ formats, genres, initialValues }: Props)
             </div>
           </div>
         ) : (
-          <div ref={releaseDropdownRef} className="relative">
-            <input
-              className={inputClass}
-              placeholder="Search by title…"
-              value={releaseQuery}
-              onChange={(e) => setReleaseQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
-            />
-            {releaseResults.length > 0 && (
-              <div className={dropdownClass}>
-                {releaseResults.map((r) => (
-                  <button
-                    key={r.releaseId}
-                    type="button"
-                    onClick={() => selectRelease(r)}
-                    className={dropdownItemClass}
-                  >
-                    <span className="font-medium">{r.title}</span>
-                    <span className="ml-2 text-zinc-400 text-xs">({r.originalReleaseYear})</span>
-                    <span className="ml-2 text-zinc-500 text-sm">
-                      {r.artists.map((a) => a.artist.name).join(', ')}
-                    </span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={startCreatingRelease}
-                  className="w-full px-4 py-2 text-left text-sm text-zinc-500 border-t border-zinc-100 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  + Create new release for &ldquo;{releaseQuery}&rdquo;
-                </button>
-              </div>
-            )}
-            {releaseQuery.length >= 2 && releaseResults.length === 0 && (
+          <div>
+            <label className={labelClass}>Search for Release on Discogs</label>
+            <div className="flex items-center gap-2">
+              <input
+                className={inputClass}
+                placeholder="e.g. Kind of Blue, Miles Davis"
+                value={discogsQuery}
+                onChange={(e) => setDiscogsQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToDiscogsSearch() } }}
+              />
+              <button
+                type="button"
+                onClick={goToDiscogsSearch}
+                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+              >
+                Search
+              </button>
+            </div>
+
+            <h2 className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+              Search for Existing Release in Collection
+            </h2>
+            <div className="flex items-center gap-2">
+              <input
+                className={inputClass}
+                placeholder="Search by title…"
+                value={releaseQuery}
+                onChange={(e) => setReleaseQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToReleaseSearch() } }}
+              />
+              <button
+                type="button"
+                onClick={goToReleaseSearch}
+                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+              >
+                Search
+              </button>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
               <button
                 type="button"
                 onClick={startCreatingRelease}
-                className="mt-2 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline"
+                className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                No results — create new release for &ldquo;{releaseQuery}&rdquo;
+                + Add Record Manually
               </button>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-              <label className={labelClass}>Search for Release on Discogs</label>
-              <div className="flex items-center gap-2">
-                <input
-                  className={inputClass}
-                  placeholder="e.g. Kind of Blue, Miles Davis"
-                  value={discogsQuery}
-                  onChange={(e) => setDiscogsQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); goToDiscogsSearch() } }}
-                />
-                <button
-                  type="button"
-                  onClick={goToDiscogsSearch}
-                  className="rounded-full border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
-                >
-                  Search
-                </button>
-              </div>
             </div>
           </div>
         )}

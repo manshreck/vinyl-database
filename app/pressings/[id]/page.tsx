@@ -84,13 +84,7 @@ export default async function PressingPage({
               />
             )}
             <div>
-              <Link
-                href="/pressings"
-                className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-              >
-                ← Collection
-              </Link>
-              <h1 className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+              <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
                 {release.title}
               </h1>
               <p className="text-zinc-500 dark:text-zinc-400">{artists}</p>

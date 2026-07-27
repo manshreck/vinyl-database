@@ -53,11 +53,18 @@ describe('GET /api/releases/search', () => {
     expect(mockFindMany).not.toHaveBeenCalled()
   })
 
-  it('queries releases with a case-insensitive contains filter', async () => {
+  it('queries releases with a case-insensitive contains filter on title, notes, artist name, and genre name', async () => {
     await GET(makeRequest('kind'))
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { title: { contains: 'kind', mode: 'insensitive' } },
+        where: {
+          OR: [
+            { title: { contains: 'kind', mode: 'insensitive' } },
+            { notes: { contains: 'kind', mode: 'insensitive' } },
+            { artists: { some: { artist: { name: { contains: 'kind', mode: 'insensitive' } } } } },
+            { genres: { some: { genre: { name: { contains: 'kind', mode: 'insensitive' } } } } },
+          ],
+        },
       })
     )
   })

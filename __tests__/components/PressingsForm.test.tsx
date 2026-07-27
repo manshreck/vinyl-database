@@ -20,15 +20,6 @@ describe('PressingsForm', () => {
     global.fetch = jest.fn().mockResolvedValue({ json: () => Promise.resolve([]) }) as unknown as typeof fetch
   })
 
-  it('does not submit when Enter is pressed in the release search box before a release is chosen', async () => {
-    const user = userEvent.setup()
-    render(<PressingsForm formats={[]} genres={[]} />)
-
-    await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue{Enter}')
-
-    expect(mockCreatePressing).not.toHaveBeenCalled()
-  })
-
   it('submits once a release is created and required fields are filled', async () => {
     const user = userEvent.setup()
     const { container } = render(
@@ -36,7 +27,7 @@ describe('PressingsForm', () => {
     )
 
     await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-    await user.click(screen.getByText(/No results/))
+    await user.click(screen.getByText('+ Add Record Manually'))
 
     await user.type(
       container.querySelector('input[name="newReleaseYear"]') as HTMLInputElement,
@@ -54,13 +45,71 @@ describe('PressingsForm', () => {
     expect(mockCreatePressing).toHaveBeenCalledTimes(1)
   })
 
+  it('renders with a preselected release and shows Pressing details immediately', () => {
+    render(
+      <PressingsForm
+        formats={[]}
+        genres={[]}
+        initialSelectedRelease={{
+          releaseId: 42,
+          title: 'Kind of Blue',
+          originalReleaseYear: 1959,
+          coverImageUrl: null,
+          artists: [{ artist: { name: 'Miles Davis' } }],
+        }}
+      />
+    )
+
+    expect(screen.getByText('Kind of Blue')).toBeInTheDocument()
+    expect(screen.getByText('Miles Davis')).toBeInTheDocument()
+    expect(screen.getByText('Pressing details')).toBeInTheDocument()
+  })
+
+  it('opens directly on the manual New release form when given an initial title', () => {
+    render(<PressingsForm formats={[]} genres={[]} initialTitle="Kind of Blue" />)
+
+    expect(screen.getByText('New release')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Kind of Blue')).toBeInTheDocument()
+  })
+
+  describe('Search for Existing Release in Collection', () => {
+    it('navigates to /releases with the entered query when Search is clicked', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
+      await user.click(screen.getAllByText('Search')[1])
+
+      expect(mockPush).toHaveBeenCalledWith('/releases?q=' + encodeURIComponent('Kind of Blue'))
+    })
+
+    it('navigates to /releases with no query when the box is left blank', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.click(screen.getAllByText('Search')[1])
+
+      expect(mockPush).toHaveBeenCalledWith('/releases')
+    })
+
+    it('navigates on Enter without triggering local release creation', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue{Enter}')
+
+      expect(mockPush).toHaveBeenCalledWith('/releases?q=' + encodeURIComponent('Kind of Blue'))
+      expect(mockCreatePressing).not.toHaveBeenCalled()
+    })
+  })
+
   describe('Search for Release on Discogs', () => {
     it('navigates to /discogs with the entered query when Search is clicked', async () => {
       const user = userEvent.setup()
       render(<PressingsForm formats={[]} genres={[]} />)
 
       await user.type(screen.getByPlaceholderText('e.g. Kind of Blue, Miles Davis'), 'Exodus Bob Marley')
-      await user.click(screen.getByText('Search'))
+      await user.click(screen.getAllByText('Search')[0])
 
       expect(mockPush).toHaveBeenCalledWith('/discogs?q=' + encodeURIComponent('Exodus Bob Marley'))
     })
@@ -69,7 +118,7 @@ describe('PressingsForm', () => {
       const user = userEvent.setup()
       render(<PressingsForm formats={[]} genres={[]} />)
 
-      await user.click(screen.getByText('Search'))
+      await user.click(screen.getAllByText('Search')[0])
 
       expect(mockPush).toHaveBeenCalledWith('/discogs')
     })
@@ -95,7 +144,7 @@ describe('PressingsForm', () => {
         <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
       )
       await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-      await user.click(screen.getByText(/No results/))
+      await user.click(screen.getByText('+ Add Record Manually'))
       return { user, container }
     }
 
@@ -140,7 +189,7 @@ describe('PressingsForm', () => {
         <PressingsForm formats={[{ formatId: 1, name: 'LP' }]} genres={[]} />
       )
       await user.type(screen.getByPlaceholderText('Search by title…'), 'Kind of Blue')
-      await user.click(screen.getByText(/No results/))
+      await user.click(screen.getByText('+ Add Record Manually'))
       return { user, container }
     }
 
