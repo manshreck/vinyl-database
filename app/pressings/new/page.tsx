@@ -75,6 +75,7 @@ export default async function NewPressingPage({ searchParams }: { searchParams: 
             width={56}
             height={56}
             className="h-14 w-14 object-contain"
+            unoptimized
           />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             Add Record

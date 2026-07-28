@@ -48,6 +48,7 @@ export default async function Home() {
                   width={80}
                   height={80}
                   className="block mx-auto mb-3 h-20 w-20 object-contain"
+                  unoptimized
                 />
               )}
               <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
