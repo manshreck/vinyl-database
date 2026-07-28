@@ -239,6 +239,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                   required
                   className={inputClass}
                   defaultValue={initialValues?.originalReleaseYear ?? ''}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
             </div>
@@ -325,6 +326,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                 defaultValue={initialValues?.discCount ?? 1}
                 required
                 className={inputClass}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -367,6 +369,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                 className={inputClass}
                 placeholder="e.g. 1972"
                 defaultValue={initialValues?.pressingYear ?? ''}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -413,6 +416,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                   setPurchasePriceTouched(true)
                   if (!currentValueTouched) setCurrentValue(e.target.value)
                 }}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -440,6 +444,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                   setCurrentValue(e.target.value)
                   setCurrentValueTouched(true)
                 }}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>
