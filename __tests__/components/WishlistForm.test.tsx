@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WishlistForm from '@/app/wishlist/new/WishlistForm'
 
@@ -91,5 +91,86 @@ describe('WishlistForm', () => {
     )
 
     expect(screen.getByText('Change')).toHaveAttribute('href', '/wishlist/search')
+  })
+
+  describe('when the action reports the release is already owned or wanted', () => {
+    const DUPLICATE = {
+      releaseId: 42,
+      title: 'Kind of Blue',
+      originalReleaseYear: 1959,
+      coverImageUrl: null,
+      artistNames: ['Miles Davis'],
+      pressings: [],
+      wishlistItems: [
+        {
+          wishlistItemId: 3,
+          formatName: 'LP',
+          pressingYear: 1959,
+          country: 'US',
+          label: 'Columbia',
+          catalogNumber: 'CL 1355',
+          vinylColor: null,
+          discCount: 1,
+          identical: true,
+        },
+      ],
+    }
+
+    async function submitAgainstDuplicate() {
+      const user = userEvent.setup()
+      const { container } = render(
+        <WishlistForm
+          formats={[{ formatId: 1, name: 'LP' }]}
+          genres={[]}
+          selectedRelease={{
+            releaseId: 42,
+            title: 'Kind of Blue',
+            originalReleaseYear: 1959,
+            coverImageUrl: null,
+            artists: [{ artist: { name: 'Miles Davis' } }],
+          }}
+        />
+      )
+
+      await user.selectOptions(
+        container.querySelector('select[name="formatId"]') as HTMLSelectElement,
+        'LP'
+      )
+      await user.click(screen.getByText('Save to wishlist'))
+      return user
+    }
+
+    it('shows the confirmation dialog instead of navigating away', async () => {
+      mockCreateWishlistItem.mockResolvedValue({ duplicate: DUPLICATE })
+
+      await submitAgainstDuplicate()
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('This exact pressing is already on your wishlist')).toBeInTheDocument()
+    })
+
+    it('resubmits with confirmation when the user accepts the duplicate', async () => {
+      mockCreateWishlistItem.mockResolvedValue({ duplicate: DUPLICATE })
+      const user = await submitAgainstDuplicate()
+
+      mockCreateWishlistItem.mockResolvedValue(undefined)
+      await user.click(screen.getByText('Yes, add a second identical entry'))
+
+      expect(mockCreateWishlistItem).toHaveBeenCalledTimes(2)
+      const resubmitted = mockCreateWishlistItem.mock.calls[1][0] as FormData
+      expect(resubmitted.get('confirmDuplicate')).toBe('true')
+      expect(resubmitted.get('releaseId')).toBe('42')
+    })
+
+    it('does not resubmit when the user cancels, and leaves the form usable', async () => {
+      mockCreateWishlistItem.mockResolvedValue({ duplicate: DUPLICATE })
+      const user = await submitAgainstDuplicate()
+
+      await user.click(within(screen.getByRole('dialog')).getByText('Cancel'))
+
+      expect(mockCreateWishlistItem).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByText('Save to wishlist')).not.toBeDisabled()
+    })
   })
 })

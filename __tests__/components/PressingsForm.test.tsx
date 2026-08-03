@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PressingsForm from '@/app/pressings/new/PressingsForm'
 
@@ -77,6 +77,103 @@ describe('PressingsForm', () => {
     expect(screen.getByText('Miles Davis')).toBeInTheDocument()
     expect(screen.getByText('Pressing details')).toBeInTheDocument()
     expect(screen.queryByText('New release')).not.toBeInTheDocument()
+  })
+
+  describe('when the action reports the release is already in the collection', () => {
+    const DUPLICATE = {
+      releaseId: 42,
+      title: 'Kind of Blue',
+      originalReleaseYear: 1959,
+      coverImageUrl: null,
+      artistNames: ['Miles Davis'],
+      pressings: [
+        {
+          pressingId: 7,
+          formatName: 'LP',
+          pressingYear: 1959,
+          country: 'US',
+          label: 'Columbia',
+          catalogNumber: 'CL 1355',
+          vinylColor: null,
+          discCount: 1,
+          recordCondition: 'NM',
+          sleeveCondition: null,
+          purchaseDate: null,
+        },
+      ],
+      wishlistItems: [],
+    }
+
+    async function submitAgainstDuplicate() {
+      const user = userEvent.setup()
+      const { container } = render(
+        <PressingsForm
+          formats={[{ formatId: 1, name: 'LP' }]}
+          genres={[]}
+          selectedRelease={{
+            releaseId: 42,
+            title: 'Kind of Blue',
+            originalReleaseYear: 1959,
+            coverImageUrl: null,
+            artists: [{ artist: { name: 'Miles Davis' } }],
+          }}
+        />
+      )
+
+      await user.selectOptions(
+        container.querySelector('select[name="formatId"]') as HTMLSelectElement,
+        'LP'
+      )
+      await user.selectOptions(
+        container.querySelector('select[name="recordCondition"]') as HTMLSelectElement,
+        'NM'
+      )
+      await user.click(screen.getByText('Save pressing'))
+      return user
+    }
+
+    it('shows the confirmation dialog instead of navigating away', async () => {
+      mockCreatePressing.mockResolvedValue({ duplicate: DUPLICATE })
+
+      await submitAgainstDuplicate()
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('You already own a pressing of this release')).toBeInTheDocument()
+      expect(screen.getByText('LP · 1959 · Columbia · CL 1355 · US · Record NM')).toBeInTheDocument()
+    })
+
+    it('resubmits with confirmation when the user adds anyway', async () => {
+      mockCreatePressing.mockResolvedValue({ duplicate: DUPLICATE })
+      const user = await submitAgainstDuplicate()
+
+      mockCreatePressing.mockResolvedValue(undefined)
+      await user.click(screen.getByText('Add anyway'))
+
+      expect(mockCreatePressing).toHaveBeenCalledTimes(2)
+      const resubmitted = mockCreatePressing.mock.calls[1][0] as FormData
+      expect(resubmitted.get('confirmDuplicate')).toBe('true')
+      expect(resubmitted.get('releaseId')).toBe('42')
+      expect(resubmitted.get('recordCondition')).toBe('NM')
+    })
+
+    it('does not resubmit when the user cancels, and keeps the form filled in', async () => {
+      mockCreatePressing.mockResolvedValue({ duplicate: DUPLICATE })
+      const user = await submitAgainstDuplicate()
+
+      await user.click(within(screen.getByRole('dialog')).getByText('Cancel'))
+
+      expect(mockCreatePressing).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByText('Pressing details')).toBeInTheDocument()
+    })
+
+    it('leaves the submit button usable again after cancelling', async () => {
+      mockCreatePressing.mockResolvedValue({ duplicate: DUPLICATE })
+      const user = await submitAgainstDuplicate()
+      await user.click(within(screen.getByRole('dialog')).getByText('Cancel'))
+
+      expect(screen.getByText('Save pressing')).not.toBeDisabled()
+    })
   })
 
   it('links Change on a preselected release to /pressings/search', () => {

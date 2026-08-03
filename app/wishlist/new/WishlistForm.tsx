@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createWishlistItem } from '@/app/actions/createWishlistItem'
+import type { ReleaseHoldings } from '@/lib/releaseIntake'
+import DuplicateWishlistDialog from './DuplicateWishlistDialog'
 
 export type ReleaseResult = {
   releaseId: number
@@ -64,6 +66,11 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
 
   const [selectedGenres, setSelectedGenres] = useState<number[]>(initialValues?.genreIds ?? [])
   const [pending, setPending] = useState(false)
+
+  // Set when the release is already owned or already wanted; the submitted FormData is
+  // held aside so confirming can resend it verbatim rather than re-reading the form.
+  const [duplicate, setDuplicate] = useState<ReleaseHoldings | null>(null)
+  const pendingSubmission = useRef<FormData | null>(null)
 
   const [coverImageUrl, setCoverImageUrl] = useState(initialValues?.coverImageUrl ?? null)
   const [retrievingImage, setRetrievingImage] = useState(false)
@@ -126,7 +133,27 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
     e.preventDefault()
     setPending(true)
     const data = new FormData(e.currentTarget)
+    const result = await createWishlistItem(data)
+    // Only comes back when the release is already owned or wanted — otherwise it redirects.
+    if (result?.duplicate) {
+      pendingSubmission.current = data
+      setDuplicate(result.duplicate)
+    }
+    setPending(false)
+  }
+
+  async function confirmDuplicate() {
+    const data = pendingSubmission.current
+    if (!data) return
+    setPending(true)
+    data.set('confirmDuplicate', 'true')
     await createWishlistItem(data)
+    setPending(false)
+  }
+
+  function cancelDuplicate() {
+    pendingSubmission.current = null
+    setDuplicate(null)
   }
 
   return (
@@ -369,6 +396,15 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
           Cancel
         </Link>
       </div>
+
+      {duplicate && (
+        <DuplicateWishlistDialog
+          duplicate={duplicate}
+          pending={pending}
+          onConfirm={confirmDuplicate}
+          onCancel={cancelDuplicate}
+        />
+      )}
     </form>
   )
 }

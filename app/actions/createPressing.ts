@@ -2,15 +2,38 @@
 
 import { getTenantPrisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
-import { resolveReleaseId } from '@/lib/releaseIntake'
+import { findReleaseHoldings, resolveReleaseId, type ReleaseHoldings } from '@/lib/releaseIntake'
 import { ConditionGrade } from '@prisma/client'
 import { redirect } from 'next/navigation'
 
-export async function createPressing(formData: FormData) {
+/**
+ * Returned instead of redirecting when the release is already owned or already on the
+ * wishlist and the user hasn't confirmed yet. On success the action redirects.
+ */
+export type CreatePressingResult = { duplicate: ReleaseHoldings }
+
+export async function createPressing(
+  formData: FormData
+): Promise<CreatePressingResult | undefined> {
   const session = await requireSession()
   const prisma = await getTenantPrisma(session.databaseName)
 
-  const releaseId = await resolveReleaseId(prisma, formData)
+  const holdings = await findReleaseHoldings(prisma, formData)
+
+  // Two things are worth saying before saving: you may have forgotten you already own a
+  // pressing, and you may not realise this purchase settles a hunt you have open.
+  const collides =
+    holdings && (holdings.pressings.length > 0 || holdings.wishlistItems.length > 0)
+  if (collides && formData.get('confirmDuplicate') !== 'true') {
+    return { duplicate: holdings }
+  }
+
+  const releaseId = await resolveReleaseId(prisma, formData, holdings?.releaseId ?? null)
+
+  // Buying the pressing you were hunting ends that hunt; entries for other pressings
+  // of the same release are still open and stay put.
+  const fulfilledWishlistIds =
+    holdings?.wishlistItems.filter((w) => w.identical).map((w) => w.wishlistItemId) ?? []
 
   // Parse pressing fields
   const vinylColorRaw = formData.get('vinylColor') as string
@@ -20,23 +43,34 @@ export async function createPressing(formData: FormData) {
   const purchaseDateRaw = formData.get('purchaseDate') as string
   const currentValueRaw = formData.get('currentValue') as string
 
-  await prisma.pressing.create({
-    data: {
-      releaseId,
-      formatId: Number(formData.get('formatId')),
-      recordCondition: formData.get('recordCondition') as ConditionGrade,
-      sleeveCondition: sleeveConditionRaw ? (sleeveConditionRaw as ConditionGrade) : null,
-      pressingYear: pressingYearRaw ? Number(pressingYearRaw) : null,
-      country: (formData.get('country') as string).trim() || null,
-      label: (formData.get('label') as string).trim() || null,
-      catalogNumber: (formData.get('catalogNumber') as string).trim() || null,
-      vinylColor: vinylColorRaw.trim() || null,
-      discCount: Number(formData.get('discCount')) || 1,
-      notes: (formData.get('notes') as string).trim() || null,
-      purchasePrice: purchasePriceRaw ? Number(purchasePriceRaw) : null,
-      purchaseDate: purchaseDateRaw ? new Date(purchaseDateRaw) : null,
-      currentValue: currentValueRaw ? Number(currentValueRaw) : null,
-    },
+  // One transaction, matching addWishlistItemToCollection: the record never lands in the
+  // collection while its wishlist entry survives, and never disappears from the wishlist
+  // without landing.
+  await prisma.$transaction(async (tx) => {
+    await tx.pressing.create({
+      data: {
+        releaseId,
+        formatId: Number(formData.get('formatId')),
+        recordCondition: formData.get('recordCondition') as ConditionGrade,
+        sleeveCondition: sleeveConditionRaw ? (sleeveConditionRaw as ConditionGrade) : null,
+        pressingYear: pressingYearRaw ? Number(pressingYearRaw) : null,
+        country: (formData.get('country') as string).trim() || null,
+        label: (formData.get('label') as string).trim() || null,
+        catalogNumber: (formData.get('catalogNumber') as string).trim() || null,
+        vinylColor: vinylColorRaw.trim() || null,
+        discCount: Number(formData.get('discCount')) || 1,
+        notes: (formData.get('notes') as string).trim() || null,
+        purchasePrice: purchasePriceRaw ? Number(purchasePriceRaw) : null,
+        purchaseDate: purchaseDateRaw ? new Date(purchaseDateRaw) : null,
+        currentValue: currentValueRaw ? Number(currentValueRaw) : null,
+      },
+    })
+
+    if (fulfilledWishlistIds.length > 0) {
+      await tx.wishlistItem.deleteMany({
+        where: { wishlistItemId: { in: fulfilledWishlistIds } },
+      })
+    }
   })
 
   redirect('/pressings')

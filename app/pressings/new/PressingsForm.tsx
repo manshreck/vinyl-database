@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createPressing } from '@/app/actions/createPressing'
+import type { ReleaseHoldings } from '@/lib/releaseIntake'
+import DuplicatePressingDialog from './DuplicatePressingDialog'
 
 const CONDITIONS = [
   { value: 'P', label: 'P — Poor' },
@@ -78,6 +80,11 @@ export default function PressingsForm({ formats, genres, initialValues, selected
   const [selectedGenres, setSelectedGenres] = useState<number[]>(initialValues?.genreIds ?? [])
   const [pending, setPending] = useState(false)
 
+  // Set when the release turns out to already have pressings; the submitted FormData is
+  // held aside so "Add anyway" can resend it verbatim rather than re-reading the form.
+  const [duplicate, setDuplicate] = useState<ReleaseHoldings | null>(null)
+  const pendingSubmission = useRef<FormData | null>(null)
+
   const [coverImageUrl, setCoverImageUrl] = useState(initialValues?.coverImageUrl ?? null)
   const [retrievingImage, setRetrievingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
@@ -147,7 +154,27 @@ export default function PressingsForm({ formats, genres, initialValues, selected
     e.preventDefault()
     setPending(true)
     const data = new FormData(e.currentTarget)
+    const result = await createPressing(data)
+    // Only comes back when the release already has pressings — otherwise it redirects.
+    if (result?.duplicate) {
+      pendingSubmission.current = data
+      setDuplicate(result.duplicate)
+    }
+    setPending(false)
+  }
+
+  async function confirmDuplicate() {
+    const data = pendingSubmission.current
+    if (!data) return
+    setPending(true)
+    data.set('confirmDuplicate', 'true')
     await createPressing(data)
+    setPending(false)
+  }
+
+  function cancelDuplicate() {
+    pendingSubmission.current = null
+    setDuplicate(null)
   }
 
   return (
@@ -467,6 +494,15 @@ export default function PressingsForm({ formats, genres, initialValues, selected
           Cancel
         </a>
       </div>
+
+      {duplicate && (
+        <DuplicatePressingDialog
+          duplicate={duplicate}
+          pending={pending}
+          onConfirm={confirmDuplicate}
+          onCancel={cancelDuplicate}
+        />
+      )}
     </form>
   )
 }
