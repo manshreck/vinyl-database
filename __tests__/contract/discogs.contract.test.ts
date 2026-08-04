@@ -14,6 +14,7 @@
 import searchFixture from '@/test-support/fakes/fixtures/search-kind-of-blue.json'
 import releaseFixture from '@/test-support/fakes/fixtures/release-2825456.json'
 import masterFixture from '@/test-support/fakes/fixtures/master-5460.json'
+import { realDiscogsToken, warnDiscogsTokenMissing } from '@/test-support/discogsToken'
 
 const DISCOGS_API_BASE = 'https://api.discogs.com'
 const USER_AGENT = 'VinylDatabase/1.0 +https://github.com/manshreck/vinyl-database'
@@ -21,7 +22,7 @@ const USER_AGENT = 'VinylDatabase/1.0 +https://github.com/manshreck/vinyl-databa
 async function fetchReal<T>(path: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${DISCOGS_API_BASE}${path}`)
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
-  url.searchParams.set('token', process.env.DISCOGS_TOKEN!)
+  url.searchParams.set('token', realDiscogsToken()!)
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
   if (!res.ok) throw new Error(`Discogs request failed: ${res.status} ${path}`)
   return res.json() as Promise<T>
@@ -65,7 +66,10 @@ function assertShapeSubset(expected: unknown, actual: unknown, path: string) {
   }
 }
 
-const maybeDescribe = process.env.DISCOGS_TOKEN ? describe : describe.skip
+const hasToken = realDiscogsToken() !== null
+if (!hasToken) warnDiscogsTokenMissing('Discogs contract tests')
+
+const maybeDescribe = hasToken ? describe : describe.skip
 
 maybeDescribe('Discogs fixtures vs. the real API (contract)', () => {
   it('search results still have the shape lib/discogs.ts depends on', async () => {

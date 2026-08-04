@@ -5,8 +5,8 @@
     "per_page": 5,
     "items": 1036,
     "urls": {
-      "last": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=ZXtgzbvTyVcWvTUIqIJFTGZjCZWjDgPxoSPvenfX&page=208",
-      "next": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=ZXtgzbvTyVcWvTUIqIJFTGZjCZWjDgPxoSPvenfX&page=2"
+      "last": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=TESTTOKEN&page=208",
+      "next": "https://api.discogs.com/database/search?type=release&q=Kind+of+Blue+Miles+Davis&per_page=5&token=TESTTOKEN&page=2"
     }
   },
   "results": [
