@@ -8,6 +8,7 @@ import FilterPanel from './FilterPanel'
 import ConditionInfo from './ConditionInfo'
 import Pagination from '@/app/components/Pagination'
 import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
+import { countDistinctArtists } from '@/lib/collectionSummary'
 
 const conditionLabel: Record<string, string> = {
   P: 'P',
@@ -37,7 +38,7 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
   const { artistId, formatId, genreId, sort, page } = await searchParams
   const sortBy = sort === 'title' ? 'title' : 'artist'
 
-  const [pressings, artists, formats, genres] = await Promise.all([
+  const [pressings, artists, formats, genres, totalPressings] = await Promise.all([
     prisma.pressing.findMany({
       where: {
         ...(formatId && { formatId: Number(formatId) }),
@@ -61,10 +62,25 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
       },
       orderBy: [{ pressingYear: 'asc' }],
     }),
-    prisma.artist.findMany({ orderBy: { sortName: 'asc' } }),
+    // Only artists represented in the collection. An artist row can exist with no
+    // pressings — added via the wishlist, or left behind when its last pressing was
+    // deleted — and offering those in the filter yields an empty table.
+    //
+    // Note this is the whole collection's artist list, unaffected by the active
+    // filters, so its length doubles as the collection-wide artist total below. One
+    // query serves both, and the dropdown and the summary cannot disagree.
+    prisma.artist.findMany({
+      where: { releases: { some: { release: { pressings: { some: {} } } } } },
+      orderBy: { sortName: 'asc' },
+    }),
     prisma.format.findMany({ orderBy: { name: 'asc' } }),
     prisma.genre.findMany({ orderBy: { name: 'asc' } }),
+    // Deliberately ignores the filters so the summary always reports the whole
+    // collection. An indexed count, far cheaper than a denormalized counter that drifts.
+    prisma.pressing.count(),
   ])
+
+  const totalArtists = artists.length
 
   pressings.sort((a, b) => {
     const aSortName = a.release.artists[0]?.artist.sortName ?? ''
@@ -79,6 +95,11 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
     if (secondary !== 0) return secondary
     return (a.pressingYear ?? 0) - (b.pressingYear ?? 0)
   })
+
+  // With a filter on, the totals above still describe the whole collection, so also say
+  // what the filtered view holds — otherwise the summary and the table disagree.
+  const isFiltered = Boolean(artistId || formatId || genreId)
+  const shownArtists = countDistinctArtists(pressings)
 
   const { currentPage, totalPages } = resolvePage(page, pressings.length)
   const pagePressings = pressings.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -116,6 +137,28 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
               Add record
             </Link>
           </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <span>
+            Total Pressings:{' '}
+            <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
+              {totalPressings}
+            </strong>
+          </span>
+          <span>
+            Total Artists:{' '}
+            <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
+              {totalArtists}
+            </strong>
+          </span>
+          {isFiltered && (
+            <span className="text-zinc-400 dark:text-zinc-500">
+              Filtered to {pressings.length} {pressings.length === 1 ? 'pressing' : 'pressings'}
+              {' by '}
+              {shownArtists} {shownArtists === 1 ? 'artist' : 'artists'}
+            </span>
+          )}
         </div>
 
         <div className="mb-6">
