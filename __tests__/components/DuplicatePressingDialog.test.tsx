@@ -157,19 +157,48 @@ describe('DuplicatePressingDialog', () => {
       expect(screen.getByText('Will be removed')).toBeInTheDocument()
     })
 
-    it('says entries for other pressings stay put', () => {
-      renderDialog({
-        duplicate: {
-          ...DUPLICATE,
-          pressings: [],
-          wishlistItems: [{ ...WANTED, identical: false }],
-        },
+    describe('and the entry describes a different pressing', () => {
+      const differentPressing = {
+        ...DUPLICATE,
+        pressings: [],
+        wishlistItems: [{ ...WANTED, identical: false }],
+      }
+
+      it('names the release-but-not-pressing distinction in the heading', () => {
+        renderDialog({ duplicate: differentPressing })
+
+        expect(
+          screen.getByText('This release (but not this pressing) is on your wishlist')
+        ).toBeInTheDocument()
+        expect(screen.getByText('On your wishlist — a different pressing')).toBeInTheDocument()
       })
 
-      expect(screen.getByText(/those entries stay|that entry stays/)).toBeInTheDocument()
-      expect(screen.getByText('On your wishlist — other pressings')).toBeInTheDocument()
-      expect(screen.getByText('Stays on your wishlist')).toBeInTheDocument()
-      expect(screen.queryByText('Will be removed')).not.toBeInTheDocument()
+      it('points at the remove button by name and offers both choices', () => {
+        renderDialog({ duplicate: differentPressing })
+
+        expect(
+          screen.getByText(/If you wish to also remove it from your wishlist/)
+        ).toBeInTheDocument()
+        expect(screen.getByText('Add to Collection (Remove from Wishlist)')).toBeInTheDocument()
+        expect(screen.getByText('Add to Collection, Keep on Wishlist')).toBeInTheDocument()
+        expect(screen.queryByText('Add to collection')).not.toBeInTheDocument()
+      })
+
+      it('asks to clear the wishlist only when the remove button is used', async () => {
+        const user = userEvent.setup()
+        const props = renderDialog({ duplicate: differentPressing })
+
+        await user.click(screen.getByText('Add to Collection (Remove from Wishlist)'))
+        expect(props.onConfirm).toHaveBeenCalledWith(true)
+      })
+
+      it('keeps the wishlist entry when the keep button is used', async () => {
+        const user = userEvent.setup()
+        const props = renderDialog({ duplicate: differentPressing })
+
+        await user.click(screen.getByText('Add to Collection, Keep on Wishlist'))
+        expect(props.onConfirm).toHaveBeenCalledWith(false)
+      })
     })
 
     it('separates fulfilled from still-wanted when the wishlist holds both', () => {
@@ -182,9 +211,18 @@ describe('DuplicatePressingDialog', () => {
       })
 
       expect(screen.getByText('On your wishlist — this purchase fulfills it')).toBeInTheDocument()
-      expect(screen.getByText('On your wishlist — other pressings')).toBeInTheDocument()
+      expect(screen.getByText('On your wishlist — a different pressing')).toBeInTheDocument()
       expect(screen.getByText('Will be removed')).toBeInTheDocument()
-      expect(screen.getByText('Stays on your wishlist')).toBeInTheDocument()
+      // The exact match goes regardless, so only the differing entry is in question.
+      expect(screen.getByText('Add to Collection (Remove from Wishlist)')).toBeInTheDocument()
+      expect(screen.getByText('Add to Collection, Keep on Wishlist')).toBeInTheDocument()
+    })
+
+    it('offers a single button when nothing is left to decide', () => {
+      renderDialog({ duplicate: { ...DUPLICATE, pressings: [], wishlistItems: [WANTED] } })
+
+      expect(screen.getByText('Add to collection')).toBeInTheDocument()
+      expect(screen.queryByText('Add to Collection, Keep on Wishlist')).not.toBeInTheDocument()
     })
 
     it('keeps the owned heading when the release is both owned and wanted', () => {

@@ -167,6 +167,64 @@ describe('PressingsForm', () => {
       expect(screen.getByText('Pressing details')).toBeInTheDocument()
     })
 
+    it('sends removeFromWishlist only when that button is chosen', async () => {
+      const WITH_WISHLIST = {
+        ...DUPLICATE,
+        pressings: [],
+        wishlistItems: [
+          {
+            wishlistItemId: 5,
+            formatName: 'LP',
+            pressingYear: 1997,
+            country: 'US',
+            label: 'Columbia',
+            catalogNumber: 'CL 1355',
+            vinylColor: null,
+            discCount: 1,
+            identical: false,
+          },
+        ],
+      }
+      mockCreatePressing.mockResolvedValue({ duplicate: WITH_WISHLIST })
+      const user = await submitAgainstDuplicate()
+
+      mockCreatePressing.mockResolvedValue(undefined)
+      await user.click(screen.getByText('Add to Collection, Keep on Wishlist'))
+
+      const kept = mockCreatePressing.mock.calls[1][0] as FormData
+      expect(kept.get('confirmDuplicate')).toBe('true')
+      expect(kept.get('removeFromWishlist')).toBeNull()
+    })
+
+    it('sets removeFromWishlist when the remove button is chosen', async () => {
+      const WITH_WISHLIST = {
+        ...DUPLICATE,
+        pressings: [],
+        wishlistItems: [
+          {
+            wishlistItemId: 5,
+            formatName: 'LP',
+            pressingYear: 1997,
+            country: 'US',
+            label: 'Columbia',
+            catalogNumber: 'CL 1355',
+            vinylColor: null,
+            discCount: 1,
+            identical: false,
+          },
+        ],
+      }
+      mockCreatePressing.mockResolvedValue({ duplicate: WITH_WISHLIST })
+      const user = await submitAgainstDuplicate()
+
+      mockCreatePressing.mockResolvedValue(undefined)
+      await user.click(screen.getByText('Add to Collection (Remove from Wishlist)'))
+
+      const removed = mockCreatePressing.mock.calls[1][0] as FormData
+      expect(removed.get('confirmDuplicate')).toBe('true')
+      expect(removed.get('removeFromWishlist')).toBe('true')
+    })
+
     it('leaves the submit button usable again after cancelling', async () => {
       mockCreatePressing.mockResolvedValue({ duplicate: DUPLICATE })
       const user = await submitAgainstDuplicate()

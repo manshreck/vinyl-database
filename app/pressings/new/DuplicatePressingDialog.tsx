@@ -2,7 +2,13 @@
 
 import type { ReleaseHoldings } from '@/lib/releaseIntake'
 import { collectionPressingDetails, wishlistItemDetails } from '@/app/components/recordDetails'
-import DuplicateDialog, { type DialogSection } from '@/app/components/DuplicateDialog'
+import DuplicateDialog, {
+  type DialogAction,
+  type DialogSection,
+} from '@/app/components/DuplicateDialog'
+
+const REMOVE_LABEL = 'Add to Collection (Remove from Wishlist)'
+const KEEP_LABEL = 'Add to Collection, Keep on Wishlist'
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : many
@@ -11,7 +17,8 @@ function plural(n: number, one: string, many: string): string {
 type Props = {
   duplicate: ReleaseHoldings
   pending: boolean
-  onConfirm: () => void
+  /** `removeFromWishlist` also clears entries describing a different pressing. */
+  onConfirm: (removeFromWishlist?: boolean) => void
   onCancel: () => void
 }
 
@@ -27,10 +34,18 @@ export default function DuplicatePressingDialog({
   const fulfilled = duplicate.wishlistItems.filter((w) => w.identical)
   const stillWanted = duplicate.wishlistItems.filter((w) => !w.identical)
 
-  const title =
-    owned.length > 0
-      ? `You already own ${plural(owned.length, 'a pressing', `${owned.length} pressings`)} of this release`
-      : 'This release is on your wishlist'
+  // Only the wishlist entries that describe a different pressing are in question — an
+  // exact match is always cleared, so it needs no choice offered.
+  const offersWishlistChoice = stillWanted.length > 0
+
+  let title: string
+  if (owned.length > 0) {
+    title = `You already own ${plural(owned.length, 'a pressing', `${owned.length} pressings`)} of this release`
+  } else if (offersWishlistChoice && fulfilled.length === 0) {
+    title = 'This release (but not this pressing) is on your wishlist'
+  } else {
+    title = 'This release is on your wishlist'
+  }
 
   const body: string[] = []
   if (owned.length > 0) {
@@ -41,11 +56,23 @@ export default function DuplicatePressingDialog({
       `Saving clears ${plural(fulfilled.length, 'the matching entry', `${fulfilled.length} matching entries`)} from your wishlist.`
     )
   }
-  if (stillWanted.length > 0) {
+  if (offersWishlistChoice) {
     body.push(
-      `You are still hunting ${plural(stillWanted.length, 'another pressing', 'other pressings')} of this release, so ${plural(stillWanted.length, 'that entry stays', 'those entries stay')} on your wishlist.`
+      `If you wish to also remove it from your wishlist, click “${REMOVE_LABEL}” below.`
     )
   }
+
+  const actions: DialogAction[] = offersWishlistChoice
+    ? [
+        { label: REMOVE_LABEL, onClick: () => onConfirm(true), variant: 'secondary' },
+        { label: KEEP_LABEL, onClick: () => onConfirm(false) },
+      ]
+    : [
+        {
+          label: owned.length > 0 ? 'Add anyway' : 'Add to collection',
+          onClick: () => onConfirm(false),
+        },
+      ]
 
   const sections: DialogSection[] = []
   if (owned.length > 0) {
@@ -72,13 +99,11 @@ export default function DuplicatePressingDialog({
   }
   if (stillWanted.length > 0) {
     sections.push({
-      heading: 'On your wishlist — other pressings',
+      heading: 'On your wishlist — a different pressing',
       entries: stillWanted.map((w) => ({
         key: w.wishlistItemId,
         details: wishlistItemDetails(w),
         href: `/wishlist/${w.wishlistItemId}`,
-        badge: 'Stays on your wishlist',
-        badgeTone: 'neutral' as const,
       })),
     })
   }
@@ -88,11 +113,10 @@ export default function DuplicatePressingDialog({
       titleId="duplicate-pressing-title"
       title={title}
       body={body}
-      confirmLabel={owned.length > 0 ? 'Add anyway' : 'Add to collection'}
+      actions={actions}
       release={duplicate}
       sections={sections}
       pending={pending}
-      onConfirm={onConfirm}
       onCancel={onCancel}
     />
   )

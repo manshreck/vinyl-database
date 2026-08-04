@@ -163,11 +163,15 @@ export default function PressingsForm({ formats, genres, initialValues, selected
     setPending(false)
   }
 
-  async function confirmDuplicate() {
+  async function confirmDuplicate(removeFromWishlist = false) {
     const data = pendingSubmission.current
     if (!data) return
     setPending(true)
     data.set('confirmDuplicate', 'true')
+    // Opt-in: clears wishlist entries for this release that describe a different
+    // pressing. Exact matches are cleared regardless.
+    if (removeFromWishlist) data.set('removeFromWishlist', 'true')
+    else data.delete('removeFromWishlist')
     await createPressing(data)
     setPending(false)
   }

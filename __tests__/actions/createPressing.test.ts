@@ -395,7 +395,7 @@ describe('createPressing', () => {
       })
     })
 
-    it('keeps entries describing a different pressing', async () => {
+    it('keeps entries describing a different pressing by default', async () => {
       mockReleaseFindFirst.mockResolvedValue(releaseWithWishlist([WANTED_OTHER]))
 
       await createPressing(
@@ -404,6 +404,61 @@ describe('createPressing', () => {
 
       expect(mockPressingCreate).toHaveBeenCalled()
       expect(mockWishlistDeleteMany).not.toHaveBeenCalled()
+    })
+
+    it('clears a different-pressing entry when the user opts in', async () => {
+      mockReleaseFindFirst.mockResolvedValue(releaseWithWishlist([WANTED_OTHER]))
+
+      await createPressing(
+        makeFormData({
+          ...PRESSING_FIELDS,
+          releaseId: '42',
+          confirmDuplicate: 'true',
+          removeFromWishlist: 'true',
+        })
+      )
+
+      expect(mockWishlistDeleteMany).toHaveBeenCalledWith({
+        where: { wishlistItemId: { in: [4] } },
+      })
+    })
+
+    it('clears both kinds when the user opts in and the wishlist holds both', async () => {
+      mockReleaseFindFirst.mockResolvedValue(
+        releaseWithWishlist([WANTED_IDENTICAL, WANTED_OTHER])
+      )
+
+      await createPressing(
+        makeFormData({
+          ...PRESSING_FIELDS,
+          releaseId: '42',
+          confirmDuplicate: 'true',
+          removeFromWishlist: 'true',
+        })
+      )
+
+      expect(mockWishlistDeleteMany).toHaveBeenCalledWith({
+        where: { wishlistItemId: { in: [3, 4] } },
+      })
+    })
+
+    it('derives the ids to clear from its own query, not from the form', async () => {
+      // A doctored form naming an unrelated wishlist item must not widen the delete.
+      mockReleaseFindFirst.mockResolvedValue(releaseWithWishlist([WANTED_OTHER]))
+
+      await createPressing(
+        makeFormData({
+          ...PRESSING_FIELDS,
+          releaseId: '42',
+          confirmDuplicate: 'true',
+          removeFromWishlist: 'true',
+          wishlistItemId: '999',
+        })
+      )
+
+      expect(mockWishlistDeleteMany).toHaveBeenCalledWith({
+        where: { wishlistItemId: { in: [4] } },
+      })
     })
 
     it('clears only the fulfilled entry when the wishlist holds both', async () => {

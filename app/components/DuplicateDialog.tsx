@@ -18,15 +18,23 @@ export type DialogSection = {
   entries: DialogEntry[]
 }
 
+export type DialogAction = {
+  label: string
+  onClick: () => void
+  /** The rightmost action is the default; others render as quieter outlined buttons. */
+  variant?: 'primary' | 'secondary'
+}
+
 type Props = {
   /** Distinguishes the two dialogs' heading ids when both live under one form tree. */
   titleId: string
   title: string
   /** One sentence per consequence; rendered as a single paragraph. */
   body: string[]
-  /** Colors the heading and confirm button to mark a choice that is rarely intended. */
+  /** Colors the heading and primary action to mark a choice that is rarely intended. */
   escalated?: boolean
-  confirmLabel: string
+  /** Ways to proceed, in display order. The last one takes focus. */
+  actions: DialogAction[]
   release: {
     title: string
     originalReleaseYear: number
@@ -35,7 +43,6 @@ type Props = {
   }
   sections: DialogSection[]
   pending: boolean
-  onConfirm: () => void
   onCancel: () => void
 }
 
@@ -48,11 +55,10 @@ export default function DuplicateDialog({
   title,
   body,
   escalated = false,
-  confirmLabel,
+  actions,
   release,
   sections,
   pending,
-  onConfirm,
   onCancel,
 }: Props) {
   const confirmRef = useRef<HTMLButtonElement>(null)
@@ -149,7 +155,8 @@ export default function DuplicateDialog({
           ))}
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4">
+        {/* Wraps so two long labels don't overflow a narrow dialog. */}
+        <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4">
           <button
             type="button"
             onClick={onCancel}
@@ -157,19 +164,28 @@ export default function DuplicateDialog({
           >
             Cancel
           </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            onClick={onConfirm}
-            disabled={pending}
-            className={`rounded-full px-5 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-              escalated
-                ? 'bg-amber-600 text-white hover:bg-amber-700'
-                : 'bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200'
-            }`}
-          >
-            {pending ? 'Saving…' : confirmLabel}
-          </button>
+          {actions.map((action, i) => {
+            const isLast = i === actions.length - 1
+            const secondary = action.variant === 'secondary' || !isLast
+            return (
+              <button
+                key={action.label}
+                ref={isLast ? confirmRef : undefined}
+                type="button"
+                onClick={action.onClick}
+                disabled={pending}
+                className={`rounded-full px-5 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                  secondary
+                    ? 'border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    : escalated
+                      ? 'bg-amber-600 text-white hover:bg-amber-700'
+                      : 'bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200'
+                }`}
+              >
+                {pending ? 'Saving…' : action.label}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

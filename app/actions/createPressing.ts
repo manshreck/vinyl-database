@@ -30,10 +30,15 @@ export async function createPressing(
 
   const releaseId = await resolveReleaseId(prisma, formData, holdings?.releaseId ?? null)
 
-  // Buying the pressing you were hunting ends that hunt; entries for other pressings
-  // of the same release are still open and stay put.
-  const fulfilledWishlistIds =
-    holdings?.wishlistItems.filter((w) => w.identical).map((w) => w.wishlistItemId) ?? []
+  // Buying the pressing you were hunting ends that hunt, so an exact match always goes.
+  // Entries for other pressings of the release are separate hunts and stay put unless
+  // the user explicitly chose to clear them too. Ids come from our own query rather than
+  // the form, so a stale or doctored client can't widen the delete.
+  const alsoClearDifferentPressings = formData.get('removeFromWishlist') === 'true'
+  const wishlistIdsToClear =
+    holdings?.wishlistItems
+      .filter((w) => w.identical || alsoClearDifferentPressings)
+      .map((w) => w.wishlistItemId) ?? []
 
   // Parse pressing fields
   const vinylColorRaw = formData.get('vinylColor') as string
@@ -66,9 +71,9 @@ export async function createPressing(
       },
     })
 
-    if (fulfilledWishlistIds.length > 0) {
+    if (wishlistIdsToClear.length > 0) {
       await tx.wishlistItem.deleteMany({
-        where: { wishlistItemId: { in: fulfilledWishlistIds } },
+        where: { wishlistItemId: { in: wishlistIdsToClear } },
       })
     }
   })

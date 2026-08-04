@@ -97,11 +97,10 @@ export default function DuplicateWishlistDialog({
       title={copy.title}
       body={[copy.body]}
       escalated={severity === 'identical'}
-      confirmLabel={copy.confirm}
+      actions={[{ label: copy.confirm, onClick: onConfirm }]}
       release={duplicate}
       sections={sections}
       pending={pending}
-      onConfirm={onConfirm}
       onCancel={onCancel}
     />
   )
