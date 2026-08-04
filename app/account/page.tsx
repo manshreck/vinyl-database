@@ -48,13 +48,37 @@ export default async function AccountPage() {
         <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Export your data</h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Download your entire collection — every record, pressing and wishlist entry — as a
-            plain SQL file. It is readable text, not a proprietary format, and it includes the
-            schema, so it can be restored into any PostgreSQL database without this app:
+            Your data, in two forms. Both are plain readable text, not proprietary formats.
           </p>
+
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              SQL — a complete backup
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Everything: every record, pressing and wishlist entry, plus the schema, so it
+              restores into any PostgreSQL database without this app.
+            </p>
+          </div>
           <pre className="overflow-x-auto rounded-lg bg-zinc-100 dark:bg-zinc-950 px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
             <code>{'createdb my_vinyl_restore\npsql -d my_vinyl_restore -f vinyl-collection-….sql'}</code>
           </pre>
+
+          <div className="space-y-1 pt-2">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              CSV — a spreadsheet of your collection
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              One row per pressing, for opening in a spreadsheet or importing elsewhere. Covers
+              the collection only, not the wishlist, and being a flat table it is not a backup —
+              use the SQL file for that.
+            </p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">
+              Note: spreadsheet apps tend to read catalog numbers like{' '}
+              <span className="font-mono">075678584206</span> as numbers and drop the leading
+              zero. Import that column as text to keep it intact.
+            </p>
+          </div>
           {collectionIsEmpty ? (
             <p className="rounded-lg bg-amber-50 dark:bg-amber-950 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
               Your collection is empty. An export right now would rebuild the structure but
@@ -73,12 +97,20 @@ export default async function AccountPage() {
               .
             </p>
           )}
-          <a
-            href="/account/export"
-            className="inline-block rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            Download collection (.sql)
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="/account/export"
+              className="inline-block rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+            >
+              Download collection (.sql)
+            </a>
+            <a
+              href="/account/export/csv"
+              className="inline-block rounded-full border border-zinc-300 dark:border-zinc-600 px-6 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Download collection (.csv)
+            </a>
+          </div>
         </section>
 
         <section className="rounded-lg border border-red-200 dark:border-red-900 bg-white dark:bg-zinc-900 p-6 space-y-4">
