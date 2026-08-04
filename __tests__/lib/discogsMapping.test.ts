@@ -2,6 +2,7 @@ import {
   cleanDiscogsArtistName,
   guessFormatName,
   guessGenreNames,
+  matchGenreIds,
   guessDiscCount,
   guessVinylColorFromFormatText,
   buildDiscogsInitialValues,
@@ -47,6 +48,117 @@ describe('guessGenreNames', () => {
 
   it('passes through genres with no alias unchanged', () => {
     expect(guessGenreNames(['Rock', 'Jazz'])).toEqual(['Rock', 'Jazz'])
+  })
+
+  it('splits the genres that bundle several of ours', () => {
+    expect(guessGenreNames(['Funk / Soul'])).toEqual(['Funk', 'R&B / Soul'])
+    expect(guessGenreNames(['Folk, World, & Country'])).toEqual(['Folk', 'World', 'Country'])
+  })
+
+  it('accepts the unpunctuated spelling of the same bundled genre', () => {
+    expect(guessGenreNames(['Folk World & Country'])).toEqual(['Folk', 'World', 'Country'])
+  })
+
+  it('renames "Stage & Screen" to Soundtrack', () => {
+    expect(guessGenreNames(['Stage & Screen'])).toEqual(['Soundtrack'])
+  })
+
+  it('does not invent a genre for Discogs genres we have no counterpart for', () => {
+    expect(guessGenreNames(['Brass & Military'])).toEqual(['Brass & Military'])
+  })
+
+  describe('genres Discogs only files as styles', () => {
+    it('reads Punk, Ambient, Metal and Spoken Word out of styles', () => {
+      expect(guessGenreNames(['Rock'], ['Punk'])).toEqual(['Rock', 'Punk'])
+      expect(guessGenreNames(['Electronic'], ['Ambient'])).toEqual(['Electronica', 'Ambient'])
+      expect(guessGenreNames(['Non-Music'], ['Spoken Word'])).toContain('Spoken Word')
+    })
+
+    it('reaches the plain genre through a qualified style', () => {
+      expect(guessGenreNames(['Rock'], ['Nu Metal'])).toEqual(['Rock', 'Metal'])
+      expect(guessGenreNames(['Rock'], ['Post-Punk'])).toEqual(['Rock', 'Punk'])
+      expect(guessGenreNames(['Electronic'], ['Dark Ambient'])).toEqual(['Electronica', 'Ambient'])
+    })
+
+    it('ignores styles that map to none of the four', () => {
+      expect(guessGenreNames(['Jazz'], ['Fusion', 'Modal'])).toEqual(['Jazz'])
+      expect(guessGenreNames(['Rock'], ['Rock & Roll'])).toEqual(['Rock'])
+    })
+
+    it('does not duplicate a genre already present', () => {
+      expect(guessGenreNames(['Rock'], ['Punk', 'Punk Rock', 'Pop Punk'])).toEqual(['Rock', 'Punk'])
+    })
+  })
+
+  /**
+   * End-to-end over both functions, since guessGenreNames emits candidates and
+   * matchGenreIds does the normalizing — only the pair shows what actually gets
+   * ticked in the form. Payloads copied verbatim from the Discogs API.
+   */
+  describe('against real Discogs responses', () => {
+    const OUR_GENRES = [
+      'Ambient', 'Blues', 'Classical', 'Country', 'Electronica', 'Folk', 'Funk',
+      'Hip-Hop', 'Jazz', 'Latin', 'Metal', 'Pop', 'Punk', 'R&B / Soul', 'Reggae',
+      'Rock', 'Soundtrack', 'Spoken Word', 'World',
+    ].map((name, i) => ({ genreId: i + 1, name }))
+
+    function prefilled(genres: string[], styles: string[]): string[] {
+      const ids = matchGenreIds(guessGenreNames(genres, styles), OUR_GENRES)
+      return OUR_GENRES.filter((g) => ids.includes(g.genreId)).map((g) => g.name)
+    }
+
+    it.each([
+      ['Illmatic', ['Hip Hop'], ['Conscious', 'Boom Bap'], ['Hip-Hop']],
+      ['Ramones', ['Rock'], ['Rock & Roll', 'Punk'], ['Punk', 'Rock']],
+      ['Music For Airports', ['Electronic'], ['Ambient', 'Minimal'], ['Ambient', 'Electronica']],
+      ['Meteora', ['Rock'], ['Nu Metal'], ['Metal', 'Rock']],
+      ['Star Wars', ['Stage & Screen'], ['Soundtrack', 'Score'], ['Soundtrack']],
+      ['Bitches Brew', ['Jazz'], ['Fusion'], ['Jazz']],
+      ['Talk Is Cheap', ['Non-Music'], ['Spoken Word'], ['Spoken Word']],
+      [
+        'Pink Moon',
+        ['Rock', 'Folk, World, & Country'],
+        ['Acoustic', 'Folk', 'Folk Rock'],
+        ['Country', 'Folk', 'Rock', 'World'],
+      ],
+      [
+        'Small Talk',
+        ['Jazz', 'Funk / Soul'],
+        ['Jazz-Funk', 'Rhythm & Blues', 'Funk'],
+        ['Funk', 'Jazz', 'R&B / Soul'],
+      ],
+    ])('%s', (_title, genres, styles, expected) => {
+      expect(prefilled(genres, styles)).toEqual(expected)
+    })
+
+    it('ticks nothing when Discogs offers no genre we carry', () => {
+      expect(prefilled(['Brass & Military'], [])).toEqual([])
+    })
+  })
+})
+
+describe('matchGenreIds', () => {
+  const AVAILABLE = [
+    { genreId: 8, name: 'Hip-Hop' },
+    { genreId: 16, name: 'Rock' },
+    { genreId: 14, name: 'R&B / Soul' },
+    { genreId: 17, name: 'Spoken Word' },
+  ]
+
+  it('matches across a punctuation difference between the two vocabularies', () => {
+    expect(matchGenreIds(['Hip Hop'], AVAILABLE)).toEqual([8])
+  })
+
+  it('matches regardless of case and spacing', () => {
+    expect(matchGenreIds(['hip hop', 'r&b/soul', 'spokenword'], AVAILABLE)).toEqual([8, 14, 17])
+  })
+
+  it('returns ids for only the genres actually on hand', () => {
+    expect(matchGenreIds(['Rock', 'Klezmer'], AVAILABLE)).toEqual([16])
+  })
+
+  it('returns nothing when there are no candidates', () => {
+    expect(matchGenreIds([], AVAILABLE)).toEqual([])
   })
 })
 
@@ -97,6 +209,7 @@ describe('buildDiscogsInitialValues', () => {
     originalReleaseYear: 1959,
     country: 'US',
     genres: ['Jazz'],
+    styles: [],
     labels: [{ name: 'Columbia', catno: 'CS 8163' }],
     formats: [{ name: 'Vinyl', qty: '1', descriptions: ['LP', 'Album', 'Reissue'] }],
     vinylColor: 'Blue',

@@ -108,6 +108,7 @@ type RawRelease = {
   master_id?: number
   artists?: Array<{ name: string }>
   genres?: string[]
+  styles?: string[]
   labels?: Array<{ name: string; catno?: string }>
   formats?: Array<{ name: string; qty?: string; descriptions?: string[]; text?: string }>
   images?: Array<{ type: string; uri: string }>
@@ -125,6 +126,8 @@ export type DiscogsReleaseDetail = {
   originalReleaseYear: number
   country: string | null
   genres: string[]
+  /** Discogs' finer-grained classification; several of our genres appear only here. */
+  styles: string[]
   labels: Array<{ name: string; catno: string | null }>
   formats: Array<{ name: string; qty: string | null; descriptions: string[] }>
   vinylColor: string | null
@@ -162,6 +165,7 @@ export async function getDiscogsRelease(id: number, token: string | null): Promi
     originalReleaseYear,
     country: release.country ?? null,
     genres: release.genres ?? [],
+    styles: release.styles ?? [],
     labels: (release.labels ?? []).map((l) => ({ name: l.name, catno: l.catno ?? null })),
     formats: (release.formats ?? []).map((f) => ({
       name: f.name,

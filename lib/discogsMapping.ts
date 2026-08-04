@@ -48,13 +48,71 @@ export function guessVinylColorFromFormatText(text: string | null | undefined): 
   return colorSegments.length > 0 ? colorSegments.join(', ') : null
 }
 
-const GENRE_ALIASES: Record<string, string> = {
-  electronic: 'Electronica',
+/** Collapses spelling differences so "Hip Hop", "Hip-Hop" and "hip hop" all compare equal. */
+function normalizeGenre(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-/** Maps Discogs genre names to our Genre names, applying known aliases (Discogs "Electronic" → our "Electronica"). */
-export function guessGenreNames(discogsGenres: string[]): string[] {
-  return discogsGenres.map((g) => GENRE_ALIASES[g.toLowerCase()] ?? g)
+/**
+ * Discogs genres whose names don't survive normalization onto one of ours, either
+ * because they're worded differently ("Stage & Screen" for a soundtrack) or because
+ * they bundle several of our genres into one label. Anything not listed here falls
+ * through to a normalized name match, which is what makes Discogs' "Hip Hop" reach
+ * our "Hip-Hop" without needing an entry.
+ */
+const DISCOGS_GENRE_MAP: Record<string, string[]> = {
+  electronic: ['Electronica'],
+  funksoul: ['Funk', 'R&B / Soul'],
+  folkworldcountry: ['Folk', 'World', 'Country'],
+  stagescreen: ['Soundtrack'],
+}
+
+/**
+ * Our genres that Discogs files only as styles, never as genres — a punk record is
+ * `genres: ["Rock"], styles: ["Punk"]`, and Non-Music is the only genre a spoken word
+ * release gets. Without consulting styles these four could never prefill at all.
+ *
+ * Deliberately narrow: styles are fine-grained and numerous, so mining them wholesale
+ * would tag records far more broadly than the genre field implies. Matching is on the
+ * normalized substring so Discogs' qualified styles ("Nu Metal", "Post-Punk", "Dark
+ * Ambient") still reach the plain genre.
+ */
+const STYLE_SOURCED_GENRES = ['Ambient', 'Metal', 'Punk', 'Spoken Word']
+
+/**
+ * Turns a Discogs release's classification into candidate genre names for our list.
+ * Names are candidates rather than ids — `matchGenreIds` resolves them against
+ * whatever genres the database actually holds.
+ */
+export function guessGenreNames(discogsGenres: string[], discogsStyles: string[] = []): string[] {
+  const names = new Set<string>()
+
+  for (const genre of discogsGenres) {
+    const mapped = DISCOGS_GENRE_MAP[normalizeGenre(genre)]
+    if (mapped) mapped.forEach((name) => names.add(name))
+    else names.add(genre)
+  }
+
+  for (const style of discogsStyles) {
+    const normalizedStyle = normalizeGenre(style)
+    for (const genre of STYLE_SOURCED_GENRES) {
+      if (normalizedStyle.includes(normalizeGenre(genre))) names.add(genre)
+    }
+  }
+
+  return [...names]
+}
+
+/**
+ * Resolves candidate genre names against the genres on hand, comparing normalized so
+ * a punctuation or spacing difference between the two vocabularies doesn't lose a match.
+ */
+export function matchGenreIds<T extends { genreId: number; name: string }>(
+  candidateNames: string[],
+  available: T[]
+): number[] {
+  const wanted = new Set(candidateNames.map(normalizeGenre))
+  return available.filter((g) => wanted.has(normalizeGenre(g.name))).map((g) => g.genreId)
 }
 
 /** Derives a disc count from Discogs format quantities (e.g. "2" for a 2xLP box), defaulting to 1. */
@@ -85,7 +143,7 @@ export function buildDiscogsInitialValues(release: DiscogsReleaseDetail): Discog
     originalReleaseYear: release.originalReleaseYear,
     pressingYear: release.pressingYear,
     artistName: release.artists[0] ?? '',
-    genreNames: guessGenreNames(release.genres),
+    genreNames: guessGenreNames(release.genres, release.styles),
     formatName: guessFormatName(release.formats),
     country: release.country,
     label: release.labels[0]?.name ?? null,
