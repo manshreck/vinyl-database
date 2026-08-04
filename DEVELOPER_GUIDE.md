@@ -238,6 +238,7 @@ export async function getTenantPrisma(databaseName: string): Promise<PrismaClien
 - Clients are cached in a `Map` on `globalThis` (survives HMR, like the old singleton did) and evicted after 30 minutes idle; each has a capped connection pool (`max: 5`) so a handful of tenants can't exhaust Postgres's `max_connections`.
 - `getTenantPrisma` does **no** authentication — callers must resolve `databaseName` via `requireSession()`/`getSession()` (`lib/session.ts`) first. See [§10](#10-authentication--multi-tenancy).
 - **Do not import `PrismaClient` anywhere else.** Always obtain a client via `getTenantPrisma` from `@/lib/prisma`.
+- **`getTenantPrisma` is for request handling only.** The cache and its 30-minute eviction timer assume a server that stays up serving requests. Code that runs *outside* a request — exports, scripts, migrations, one-shot jobs — must open its own short-lived `pg` `Client` and close it in a `finally`, as `lib/exportTenant.ts` and `lib/exportCollectionCsv.ts` do. Using `getTenantPrisma` there appears to work, then keeps the process alive: the pending timer and open pool leave Node with nothing to do and no reason to exit. The usual symptom is a Jest run that completes every assertion and then hangs — which looks like a test problem and is not one.
 
 **Raw SQL** is used only in `app/search/page.tsx` via `prisma.$queryRaw<ResultRow[]>(Prisma.sql`...`)`. Parameterized with `Prisma.sql` template literals — never string-interpolate user input directly.
 
@@ -791,6 +792,14 @@ jest.mock('@/lib/session', () => ({
   requireSession: jest.fn().mockResolvedValue({ userId: 1, email: 'a@b.com', databaseName: 'vinyl_user_test' }),
 }))
 ```
+
+**If an integration test hangs after passing:** it almost certainly reached
+`getTenantPrisma` (see [§4](#4-layer-contracts)). Seam and system tests use *real*
+databases, so the module isn't mocked, and its cached client's 30-minute timer keeps
+Node alive after the assertions finish. The fix is in the code under test, not the
+test: anything runnable outside a request should take a short-lived `pg` `Client` and
+close it in a `finally`. Reach for `--forceExit` and you've hidden a leak that will
+also hold a connection open in production.
 
 **Mocking `next/navigation`:**
 

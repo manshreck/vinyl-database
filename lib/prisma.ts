@@ -33,6 +33,12 @@ function scheduleEviction(databaseName: string) {
  * Returns a (cached) PrismaClient connected to the given tenant's database.
  * Pure cache-and-construct — callers are responsible for authenticating the
  * request and resolving `databaseName` via lib/session.ts first.
+ *
+ * Request handling only. The cache and its eviction timer assume a process that stays
+ * up; code running outside a request (exports, scripts, one-shot jobs) should open a
+ * short-lived `pg` Client and close it — see lib/exportTenant.ts. Called from such
+ * code this appears to work and then keeps Node alive, because the pending timer and
+ * open pool are enough to stop the event loop draining.
  */
 export async function getTenantPrisma(databaseName: string): Promise<PrismaClient> {
   const cached = tenantClients.get(databaseName)
