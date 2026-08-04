@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createPressing } from '@/app/actions/createPressing'
 import type { ReleaseHoldings } from '@/lib/releaseIntake'
 import DuplicatePressingDialog from './DuplicatePressingDialog'
+import { useCoverImageRetrieval } from '@/app/components/useCoverImageRetrieval'
+import CoverImageErrorNotice from '@/app/components/CoverImageErrorNotice'
 
 const CONDITIONS = [
   { value: 'P', label: 'P — Poor' },
@@ -85,9 +87,12 @@ export default function PressingsForm({ formats, genres, initialValues, selected
   const [duplicate, setDuplicate] = useState<ReleaseHoldings | null>(null)
   const pendingSubmission = useRef<FormData | null>(null)
 
-  const [coverImageUrl, setCoverImageUrl] = useState(initialValues?.coverImageUrl ?? null)
-  const [retrievingImage, setRetrievingImage] = useState(false)
-  const [imageError, setImageError] = useState<string | null>(null)
+  const {
+    coverImageUrl,
+    retrieving: retrievingImage,
+    error: imageError,
+    retrieve: retrieveCoverImage,
+  } = useCoverImageRetrieval(initialValues?.coverImageUrl ?? null)
 
   // Fields never auto-populated from Discogs — flagged red until the user fills them in
   const [recordConditionTouched, setRecordConditionTouched] = useState(false)
@@ -101,11 +106,15 @@ export default function PressingsForm({ formats, genres, initialValues, selected
 
   // Search artists
   useEffect(() => {
-    if (debouncedArtistQuery.length < 2) { setArtistResults([]); return }
+    if (debouncedArtistQuery.length < 2) return
     fetch(`/api/artists/search?q=${encodeURIComponent(debouncedArtistQuery)}`)
       .then((r) => r.json())
       .then(setArtistResults)
   }, [debouncedArtistQuery])
+
+  // Hidden by derivation rather than by clearing state inside the effect above, which
+  // would cascade an extra render.
+  const visibleArtistResults = debouncedArtistQuery.length < 2 ? [] : artistResults
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -117,26 +126,6 @@ export default function PressingsForm({ formats, genres, initialValues, selected
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
-
-  async function retrieveCoverImage() {
-    setRetrievingImage(true)
-    setImageError(null)
-    try {
-      const params = new URLSearchParams({ title: releaseTitle, artist: artistQuery })
-      const res = await fetch(`/api/discogs/cover-image?${params}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Could not retrieve a cover image.')
-      if (data.coverImageUrl) {
-        setCoverImageUrl(data.coverImageUrl)
-      } else {
-        setImageError('No cover image found on Discogs for this release.')
-      }
-    } catch (err) {
-      setImageError(err instanceof Error ? err.message : 'Could not retrieve a cover image.')
-    } finally {
-      setRetrievingImage(false)
-    }
-  }
 
   function selectArtist(a: ArtistResult) {
     setSelectedArtist(a)
@@ -244,7 +233,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                   <div className="w-16 h-16 rounded-lg bg-zinc-100 dark:bg-zinc-800" />
                   <button
                     type="button"
-                    onClick={retrieveCoverImage}
+                    onClick={() => retrieveCoverImage(releaseTitle, artistQuery)}
                     disabled={retrievingImage}
                     className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline disabled:opacity-50"
                   >
@@ -252,7 +241,7 @@ export default function PressingsForm({ formats, genres, initialValues, selected
                   </button>
                 </div>
               )}
-              {imageError && <p className="text-xs text-red-600 dark:text-red-400">{imageError}</p>}
+              <CoverImageErrorNotice error={imageError} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -293,9 +282,9 @@ export default function PressingsForm({ formats, genres, initialValues, selected
               {selectedArtist && <input type="hidden" name="newArtistId" value={selectedArtist.artistId} />}
               <input type="hidden" name="newArtistName" value={artistQuery} />
 
-              {artistResults.length > 0 && (
+              {visibleArtistResults.length > 0 && (
                 <div className={dropdownClass}>
-                  {artistResults.map((a) => (
+                  {visibleArtistResults.map((a) => (
                     <button
                       key={a.artistId}
                       type="button"

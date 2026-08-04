@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ coverImageUrl: release.coverImageUrl })
   } catch (err) {
     const message = err instanceof DiscogsApiError ? err.message : 'Could not retrieve a cover image.'
-    return NextResponse.json({ error: message }, { status: 502 })
+    // Distinct from this route's own 401 (no app session): this one means Discogs
+    // refused the token, so the caller can point at the Account page.
+    const tokenRejected = err instanceof DiscogsApiError && err.unauthorized
+    return NextResponse.json({ error: message, tokenRejected }, { status: 502 })
   }
 }
