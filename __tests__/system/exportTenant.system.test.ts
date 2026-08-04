@@ -159,7 +159,9 @@ describe('buildTenantSqlExport round trip (system)', () => {
     }
   })
 
-  it('refuses to export rather than silently omit an unknown table', async () => {
+  // Guards schema drift, not user data. A table added to tenant-schema.sql but not to
+  // TABLES_IN_RESTORE_ORDER would otherwise be omitted from every export in silence.
+  it('refuses to export rather than silently omit a table it was never told about', async () => {
     await runSqlOnScratchDatabase(source, 'CREATE TABLE stowaway (id int)')
     try {
       await expect(buildTenantSqlExport(source)).rejects.toThrow(/stowaway/)
@@ -167,4 +169,20 @@ describe('buildTenantSqlExport round trip (system)', () => {
       await runSqlOnScratchDatabase(source, 'DROP TABLE stowaway')
     }
   }, 30000)
+
+  // The inverse of the guard above, and the case a user actually hits: a brand-new
+  // account with nothing in it exports fine, as schema plus zero INSERTs.
+  it('exports an empty database without complaint', async () => {
+    const empty = generateScratchDatabaseName()
+    await createScratchDatabase(empty)
+    await applyTenantSchema(empty)
+    try {
+      const sql = await buildTenantSqlExport(empty)
+      expect(sql).toContain('CREATE TABLE "pressings"')
+      expect(sql).toContain('-- pressings: 0 rows')
+      expect(sql).not.toContain('INSERT INTO')
+    } finally {
+      await dropScratchDatabase(empty)
+    }
+  }, 60000)
 })

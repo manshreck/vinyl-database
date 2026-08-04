@@ -100,18 +100,25 @@ function header(generatedAt: Date): string {
 }
 
 /**
- * Fails loudly if the database holds a table this export doesn't know about.
+ * Guards against schema drift — a developer error, not anything about a given
+ * account's data. TABLES_IN_RESTORE_ORDER is hand-maintained, so adding a table to
+ * tenant-schema.sql without adding it here would make every export quietly skip it.
  *
- * An export that silently omits data is far worse than one that refuses to run: the
- * file looks complete, gets kept as a backup, and the loss only surfaces when someone
- * restores it. Better to break the feature and get it fixed.
+ * Nothing about how much data an account holds can trigger this: empty tables export
+ * fine, as zero INSERTs. It fires only when the database contains a table this file
+ * has never been told about.
+ *
+ * Failing loudly is the point. An export that silently omits a table is far worse
+ * than one that refuses to run: the file looks complete, gets kept as the backup, and
+ * the omission only surfaces when someone finally restores it.
  */
-function assertNoUnknownTables(actualTables: string[]): void {
-  const missing = actualTables.filter((t) => !TABLES_IN_RESTORE_ORDER.includes(t))
-  if (missing.length > 0) {
+function assertEveryTableIsExported(actualTables: string[]): void {
+  const unlisted = actualTables.filter((t) => !TABLES_IN_RESTORE_ORDER.includes(t))
+  if (unlisted.length > 0) {
     throw new Error(
-      `Export would silently omit table(s): ${missing.join(', ')}. ` +
-        'Add them to TABLES_IN_RESTORE_ORDER in lib/exportTenant.ts, in foreign-key order.'
+      `Export is missing table(s) that exist in the database: ${unlisted.join(', ')}. ` +
+        'Add them to TABLES_IN_RESTORE_ORDER in lib/exportTenant.ts, in foreign-key order, ' +
+        'or every export will silently omit them.'
     )
   }
 }
@@ -132,7 +139,7 @@ export async function buildTenantSqlExport(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
     )
-    assertNoUnknownTables(tableRows.map((r) => r.table_name))
+    assertEveryTableIsExported(tableRows.map((r) => r.table_name))
 
     const out: string[] = [header(generatedAt), TENANT_SCHEMA_SQL.trim(), '']
 
