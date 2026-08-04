@@ -9,6 +9,7 @@ import ConditionInfo from './ConditionInfo'
 import Pagination from '@/app/components/Pagination'
 import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
 import { countDistinctArtists } from '@/lib/collectionSummary'
+import CollectionSummary from '@/app/components/CollectionSummary'
 
 const conditionLabel: Record<string, string> = {
   P: 'P',
@@ -139,27 +140,16 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
           </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
-          <span>
-            Total Pressings:{' '}
-            <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
-              {totalPressings}
-            </strong>
-          </span>
-          <span>
-            Total Artists:{' '}
-            <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
-              {totalArtists}
-            </strong>
-          </span>
-          {isFiltered && (
-            <span className="text-zinc-400 dark:text-zinc-500">
-              Filtered to {pressings.length} {pressings.length === 1 ? 'pressing' : 'pressings'}
-              {' by '}
-              {shownArtists} {shownArtists === 1 ? 'artist' : 'artists'}
-            </span>
-          )}
-        </div>
+        <CollectionSummary
+          totalPressings={totalPressings}
+          totalArtists={totalArtists}
+          note={
+            isFiltered
+              ? `Filtered to ${pressings.length} ${pressings.length === 1 ? 'pressing' : 'pressings'}` +
+                ` by ${shownArtists} ${shownArtists === 1 ? 'artist' : 'artists'}`
+              : null
+          }
+        />
 
         <div className="mb-6">
           <Suspense>

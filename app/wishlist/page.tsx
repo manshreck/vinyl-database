@@ -5,6 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import Pagination from '@/app/components/Pagination'
 import { resolvePage, PAGE_SIZE } from '@/lib/pagination'
+import { countDistinctArtists } from '@/lib/collectionSummary'
+import CollectionSummary from '@/app/components/CollectionSummary'
 
 type SearchParams = Promise<{ page?: string }>
 
@@ -35,6 +37,10 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
     return a.release.title.localeCompare(b.release.title)
   })
 
+  // The wishlist has no filters, so the loaded items are the whole list — both totals
+  // come straight off it without a second query.
+  const totalArtists = countDistinctArtists(items)
+
   const { currentPage, totalPages } = resolvePage(page, items.length)
   const pageItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
@@ -60,6 +66,8 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
             </Link>
           </div>
         </div>
+
+        <CollectionSummary totalPressings={items.length} totalArtists={totalArtists} />
 
         {items.length === 0 ? (
           <p className="text-zinc-500 dark:text-zinc-400">
