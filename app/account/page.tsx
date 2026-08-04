@@ -1,4 +1,5 @@
 import { requireSession } from '@/lib/session'
+import { verifyDiscogsToken } from '@/lib/discogs'
 import FullNameForm from './FullNameForm'
 import ChangePasswordForm from './ChangePasswordForm'
 import DiscogsTokenForm from './DiscogsTokenForm'
@@ -6,6 +7,10 @@ import DeleteAccountForm from './DeleteAccountForm'
 
 export default async function AccountPage() {
   const session = await requireSession()
+
+  // Checked live rather than assumed: a token can be revoked or regenerated on
+  // Discogs' side at any time, and this page is where someone comes to find out.
+  const tokenStatus = await verifyDiscogsToken(session.discogsToken)
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -27,7 +32,7 @@ export default async function AccountPage() {
 
         <section className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">Discogs token</h2>
-          <DiscogsTokenForm token={session.discogsToken} />
+          <DiscogsTokenForm token={session.discogsToken} tokenStatus={tokenStatus} />
         </section>
 
         <section className="rounded-lg border border-red-200 dark:border-red-900 bg-white dark:bg-zinc-900 p-6 space-y-4">

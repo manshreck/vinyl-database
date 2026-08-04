@@ -1,5 +1,10 @@
 import { requireSession } from '@/lib/session'
-import { resolveDiscogsToken, searchDiscogsReleases, type DiscogsSearchResult } from '@/lib/discogs'
+import {
+  DiscogsApiError,
+  resolveDiscogsToken,
+  searchDiscogsReleases,
+  type DiscogsSearchResult,
+} from '@/lib/discogs'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -16,12 +21,15 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
 
   let results: DiscogsSearchResult[] = []
   let searchError: string | null = null
+  // A rejected token is the one failure with a specific fix, so it gets a way there.
+  let tokenRejected = false
 
   if (hasSearch) {
     try {
       results = await searchDiscogsReleases(q, resolveDiscogsToken(session.discogsToken))
     } catch (err) {
       searchError = err instanceof Error ? err.message : 'Discogs search failed.'
+      tokenRejected = err instanceof DiscogsApiError && err.unauthorized
     }
   }
 
@@ -44,6 +52,15 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
         {searchError && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {searchError}
+            {tokenRejected && (
+              <>
+                {' '}
+                <Link href="/account" className="underline font-medium">
+                  Update your Discogs token
+                </Link>
+                .
+              </>
+            )}
           </div>
         )}
 

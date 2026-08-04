@@ -11,12 +11,15 @@ export function resolveDiscogsToken(userToken: string | null | undefined): strin
 export class DiscogsApiError extends Error {
   status: number
   rateLimited: boolean
+  /** Discogs rejected the token itself — the fix is a new token, not a retry. */
+  unauthorized: boolean
 
-  constructor(message: string, status: number, rateLimited = false) {
+  constructor(message: string, status: number, rateLimited = false, unauthorized = false) {
     super(message)
     this.name = 'DiscogsApiError'
     this.status = status
     this.rateLimited = rateLimited
+    this.unauthorized = unauthorized
   }
 }
 
@@ -45,10 +48,51 @@ async function discogsFetch<T>(
         true
       )
     }
+    // Retrying won't help: the token is wrong, revoked, or regenerated elsewhere. Say
+    // so, because the status code alone sends people hunting through config.
+    if (response.status === 401 || response.status === 403) {
+      throw new DiscogsApiError(
+        'Discogs rejected your token. It may have been revoked or regenerated — check that the token on your Account page is current.',
+        response.status,
+        false,
+        true
+      )
+    }
     throw new DiscogsApiError(`Discogs API request failed (${response.status}).`, response.status)
   }
 
   return response.json() as Promise<T>
+}
+
+/** What the account page can truthfully say about a stored token. */
+export type DiscogsTokenStatus = 'valid' | 'invalid' | 'unknown'
+
+/**
+ * Asks Discogs whether a token is currently accepted, via the cheapest authenticated
+ * endpoint there is.
+ *
+ * Returns 'unknown' rather than guessing whenever the answer can't actually be
+ * obtained — network trouble, rate limiting, anything that isn't a clear yes or a
+ * clear rejection. A settings page must not tell someone their token is broken on the
+ * strength of a request that merely failed to complete.
+ */
+export async function verifyDiscogsToken(
+  token: string | null | undefined
+): Promise<DiscogsTokenStatus> {
+  if (!token) return 'unknown'
+  try {
+    const url = new URL(`${DISCOGS_API_BASE}/oauth/identity`)
+    url.searchParams.set('token', token)
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      cache: 'no-store',
+    })
+    if (response.ok) return 'valid'
+    if (response.status === 401 || response.status === 403) return 'invalid'
+    return 'unknown'
+  } catch {
+    return 'unknown'
+  }
 }
 
 type RawSearchResult = {

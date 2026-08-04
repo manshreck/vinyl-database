@@ -15,7 +15,7 @@ describe('DiscogsTokenForm', () => {
   })
 
   it('explains how to get a Discogs token regardless of whether one is set', () => {
-    render(<DiscogsTokenForm token={null} />)
+    render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
     expect(
       screen.getByText(/This app can look up releases on Discogs/)
@@ -23,21 +23,53 @@ describe('DiscogsTokenForm', () => {
     expect(screen.getByText('Log in to Discogs (or create a free account if you don’t have one).')).toBeInTheDocument()
   })
 
-  it('shows a message that a token is set when token is present', () => {
-    render(<DiscogsTokenForm token="my-real-token" />)
+  describe('token status message', () => {
+    it('confirms in the affirmative when Discogs accepts the token', () => {
+      render(<DiscogsTokenForm token="my-real-token" tokenStatus="valid" />)
 
-    expect(screen.getByText('A discogs token is set for your account.')).toBeInTheDocument()
+      expect(
+        screen.getByText('A Discogs token is set for your account and Discogs accepts it.')
+      ).toBeInTheDocument()
+    })
+
+    it('warns and says what to do when Discogs rejects the token', () => {
+      render(<DiscogsTokenForm token="revoked-token" tokenStatus="invalid" />)
+
+      expect(screen.getByText(/Discogs is rejecting this token/)).toBeInTheDocument()
+      expect(screen.getByText(/revoked or regenerated/)).toBeInTheDocument()
+      expect(screen.getByText('To replace it with a working token:')).toBeInTheDocument()
+    })
+
+    // Claiming "invalid" on an unreachable check would cry wolf; claiming "valid"
+    // would hide a real outage. Neither is knowable, so the message says so.
+    it('stays neutral when the token could not be checked', () => {
+      render(<DiscogsTokenForm token="my-real-token" tokenStatus="unknown" />)
+
+      expect(
+        screen.getByText('A Discogs token is set for your account. It could not be checked just now.')
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/rejecting/)).not.toBeInTheDocument()
+    })
+
+    it('does not claim a token is rejected when none is set', () => {
+      render(<DiscogsTokenForm token={null} tokenStatus="invalid" />)
+
+      expect(
+        screen.getByText('A Discogs token is not set for your account.')
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/rejecting/)).not.toBeInTheDocument()
+    })
   })
 
   it('shows a Replace Token button instead of Save Token when a token is present', () => {
-    render(<DiscogsTokenForm token="my-real-token" />)
+    render(<DiscogsTokenForm token="my-real-token" tokenStatus="valid" />)
 
     expect(screen.getByRole('button', { name: 'Replace Token' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save Token' })).not.toBeInTheDocument()
   })
 
   it('links out to the Discogs developer settings page', () => {
-    render(<DiscogsTokenForm token={null} />)
+    render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
     expect(screen.getByText('Settings → Developers')).toHaveAttribute(
       'href',
@@ -46,20 +78,20 @@ describe('DiscogsTokenForm', () => {
   })
 
   it('does not show a Remove token button when no token is set', () => {
-    render(<DiscogsTokenForm token={null} />)
+    render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
     expect(screen.queryByText('Remove token')).not.toBeInTheDocument()
   })
 
   describe('reveal toggle', () => {
     it('does not show the current-token field when no token is set', () => {
-      render(<DiscogsTokenForm token={null} />)
+      render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
       expect(screen.queryByText('Click to reveal token')).not.toBeInTheDocument()
     })
 
     it('masks the current token by default', () => {
-      const { container } = render(<DiscogsTokenForm token="my-real-token" />)
+      const { container } = render(<DiscogsTokenForm token="my-real-token" tokenStatus="valid" />)
 
       const currentTokenInput = container.querySelector('input[readonly]') as HTMLInputElement
       expect(currentTokenInput.value).not.toBe('my-real-token')
@@ -68,7 +100,7 @@ describe('DiscogsTokenForm', () => {
 
     it('reveals the current token when clicked, and hides it again on a second click', async () => {
       const user = userEvent.setup()
-      const { container } = render(<DiscogsTokenForm token="my-real-token" />)
+      const { container } = render(<DiscogsTokenForm token="my-real-token" tokenStatus="valid" />)
       const currentTokenInput = container.querySelector('input[readonly]') as HTMLInputElement
 
       await user.click(screen.getByText('Click to reveal token'))
@@ -82,7 +114,7 @@ describe('DiscogsTokenForm', () => {
   it('submits the entered token', async () => {
     mockUpdateDiscogsToken.mockResolvedValue({ success: true })
     const user = userEvent.setup()
-    const { container } = render(<DiscogsTokenForm token={null} />)
+    const { container } = render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
     await user.type(container.querySelector('input[name="discogsToken"]') as HTMLInputElement, 'new-token-abc')
     await user.click(screen.getByText('Save Token'))
@@ -95,7 +127,7 @@ describe('DiscogsTokenForm', () => {
   it('shows the success message after a successful save', async () => {
     mockUpdateDiscogsToken.mockResolvedValue({ success: true })
     const user = userEvent.setup()
-    const { container } = render(<DiscogsTokenForm token={null} />)
+    const { container } = render(<DiscogsTokenForm token={null} tokenStatus="unknown" />)
 
     await user.type(container.querySelector('input[name="discogsToken"]') as HTMLInputElement, 'new-token-abc')
     await user.click(screen.getByText('Save Token'))
@@ -106,7 +138,7 @@ describe('DiscogsTokenForm', () => {
   it('submits an empty token when Remove token is clicked', async () => {
     mockUpdateDiscogsToken.mockResolvedValue({ success: true })
     const user = userEvent.setup()
-    render(<DiscogsTokenForm token="my-real-token" />)
+    render(<DiscogsTokenForm token="my-real-token" tokenStatus="valid" />)
 
     await user.click(screen.getByText('Remove token'))
 

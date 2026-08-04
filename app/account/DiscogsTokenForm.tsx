@@ -2,15 +2,19 @@
 
 import { useActionState, useRef, useState } from 'react'
 import { updateDiscogsToken, type FormState } from '@/app/actions/updateDiscogsToken'
+import type { DiscogsTokenStatus } from '@/lib/discogs'
 
 const initialState: FormState = null
 
 type Props = {
   token: string | null
+  /** Checked against Discogs when the page loaded; 'unknown' if it couldn't be reached. */
+  tokenStatus: DiscogsTokenStatus
 }
 
-export default function DiscogsTokenForm({ token }: Props) {
+export default function DiscogsTokenForm({ token, tokenStatus }: Props) {
   const hasToken = Boolean(token)
+  const rejected = hasToken && tokenStatus === 'invalid'
   const [state, formAction, pending] = useActionState(updateDiscogsToken, initialState)
   const [revealed, setRevealed] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -36,16 +40,17 @@ export default function DiscogsTokenForm({ token }: Props) {
         </p>
       )}
 
-      <p className={hasToken ? 'text-sm text-green-700 dark:text-green-400' : 'text-sm text-zinc-500 dark:text-zinc-400'}>
-        {hasToken ? 'A discogs token is set for your account.' : 'A discogs token is not set for your account.'}
-      </p>
+      {/* Reports what Discogs actually said, not merely whether a token is stored. */}
+      <p className={statusClass(hasToken, tokenStatus)}>{statusMessage(hasToken, tokenStatus)}</p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         This app can look up releases on Discogs to save you from typing in every detail by hand.
       </p>
 
       {hasToken && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          If you wish to replace this token with a new Discogs token:
+          {rejected
+            ? 'To replace it with a working token:'
+            : 'If you wish to replace this token with a new Discogs token:'}
         </p>
       )}
 
@@ -122,6 +127,27 @@ export default function DiscogsTokenForm({ token }: Props) {
       </div>
     </form>
   )
+}
+
+/**
+ * Four honest states. Notably 'unknown' stays neutral: if Discogs couldn't be reached
+ * we know a token is stored but not whether it works, and claiming either would be a
+ * guess — a red warning that turns out to be wrong is worse than no warning, because
+ * it teaches people to ignore the next one.
+ */
+function statusMessage(hasToken: boolean, status: DiscogsTokenStatus): string {
+  if (!hasToken) return 'A Discogs token is not set for your account.'
+  if (status === 'invalid') {
+    return 'Discogs is rejecting this token — it has been revoked or regenerated. Replace it below to restore Discogs search.'
+  }
+  if (status === 'valid') return 'A Discogs token is set for your account and Discogs accepts it.'
+  return 'A Discogs token is set for your account. It could not be checked just now.'
+}
+
+function statusClass(hasToken: boolean, status: DiscogsTokenStatus): string {
+  if (hasToken && status === 'invalid') return 'text-sm font-medium text-red-700 dark:text-red-400'
+  if (hasToken && status === 'valid') return 'text-sm text-green-700 dark:text-green-400'
+  return 'text-sm text-zinc-500 dark:text-zinc-400'
 }
 
 const labelClass = 'block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1'
