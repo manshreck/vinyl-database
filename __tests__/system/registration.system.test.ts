@@ -93,7 +93,9 @@ describe('registerUser assembling real controlDb + real provisionTenant (system)
     await registerUser(null, fd)
 
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(expect.any(Number))
-    expect(mockRedirect).toHaveBeenCalledWith('/')
+    // Registration lands on the setup wizard (real name / Discogs token), not the
+    // home page — completing or skipping the wizard is what goes to '/'.
+    expect(mockRedirect).toHaveBeenCalledWith('/setup')
 
     const user = await controlDb.findUserByEmail(email)
     expect(user).not.toBeNull()
