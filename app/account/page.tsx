@@ -6,6 +6,15 @@ import ChangePasswordForm from './ChangePasswordForm'
 import DiscogsTokenForm from './DiscogsTokenForm'
 import DeleteAccountForm from './DeleteAccountForm'
 
+/**
+ * Both download buttons share this. They are peer operations — two formats of the same
+ * data, neither the fallback — and each closes its own labelled section rather than
+ * competing side by side, so styling one as secondary would misstate the choice.
+ */
+const downloadButtonClass =
+  'inline-block rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white ' +
+  'hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors'
+
 export default async function AccountPage() {
   const session = await requireSession()
 
@@ -51,7 +60,16 @@ export default async function AccountPage() {
             Your data, in two forms. Both are plain readable text, not proprietary formats.
           </p>
 
-          <div className="space-y-1">
+          {/* Applies to both formats, so it is said once rather than under each. */}
+          {collectionIsEmpty && (
+            <p className="rounded-lg bg-amber-50 dark:bg-amber-950 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+              Your collection is empty. An export right now would rebuild the structure but
+              contain no records — worth knowing before you keep it as a backup.
+            </p>
+          )}
+
+          {/* ── SQL ── */}
+          <div className="space-y-2">
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               SQL — a complete backup
             </p>
@@ -59,12 +77,32 @@ export default async function AccountPage() {
               Everything: every record, pressing and wishlist entry, plus the schema, so it
               restores into any PostgreSQL database without this app.
             </p>
+            <pre className="overflow-x-auto rounded-lg bg-zinc-100 dark:bg-zinc-950 px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+              <code>{'createdb my_vinyl_restore\npsql -d my_vinyl_restore -f vinyl-collection-….sql'}</code>
+            </pre>
+            {!collectionIsEmpty && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                This file will contain{' '}
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
+                  {pressingCount} {pressingCount === 1 ? 'pressing' : 'pressings'}
+                </strong>{' '}
+                and{' '}
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
+                  {wishlistCount} {wishlistCount === 1 ? 'wishlist entry' : 'wishlist entries'}
+                </strong>
+                .
+              </p>
+            )}
+            <a
+              href="/account/export"
+              className={downloadButtonClass}
+            >
+              Download collection (.sql)
+            </a>
           </div>
-          <pre className="overflow-x-auto rounded-lg bg-zinc-100 dark:bg-zinc-950 px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
-            <code>{'createdb my_vinyl_restore\npsql -d my_vinyl_restore -f vinyl-collection-….sql'}</code>
-          </pre>
 
-          <div className="space-y-1 pt-2">
+          {/* ── CSV ── */}
+          <div className="space-y-2 pt-2">
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               CSV — a spreadsheet of your collection
             </p>
@@ -78,35 +116,18 @@ export default async function AccountPage() {
               <span className="font-mono">075678584206</span> as numbers and drop the leading
               zero. Import that column as text to keep it intact.
             </p>
-          </div>
-          {collectionIsEmpty ? (
-            <p className="rounded-lg bg-amber-50 dark:bg-amber-950 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
-              Your collection is empty. An export right now would rebuild the structure but
-              contain no records — worth knowing before you keep it as a backup.
-            </p>
-          ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              This export will contain{' '}
-              <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
-                {pressingCount} {pressingCount === 1 ? 'pressing' : 'pressings'}
-              </strong>{' '}
-              and{' '}
-              <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
-                {wishlistCount} {wishlistCount === 1 ? 'wishlist entry' : 'wishlist entries'}
-              </strong>
-              .
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-3">
-            <a
-              href="/account/export"
-              className="inline-block rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-            >
-              Download collection (.sql)
-            </a>
+            {!collectionIsEmpty && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                This file will contain{' '}
+                <strong className="font-semibold text-zinc-900 dark:text-zinc-50">
+                  {pressingCount} {pressingCount === 1 ? 'row' : 'rows'}
+                </strong>
+                , one per pressing.
+              </p>
+            )}
             <a
               href="/account/export/csv"
-              className="inline-block rounded-full border border-zinc-300 dark:border-zinc-600 px-6 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className={downloadButtonClass}
             >
               Download collection (.csv)
             </a>
