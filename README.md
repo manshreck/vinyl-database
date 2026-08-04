@@ -115,9 +115,20 @@ To get a Discogs API token:
 
 This is a personal access token tied to your Discogs account, not per-app-user credentials — every search request the app makes uses this single token server-side, so individual users of this app never need their own Discogs account. Discogs' free tier caps authenticated requests at 60/minute, shared across the whole app. TODO: this is sufficient for testing but will not scale. Before stress testing, per-user discog tokens will need to be stored and cached.
 
+**Is a token required?** It depends on who you are:
+
+- **Running the app** — no. `DISCOGS_TOKEN` is optional. Everything except the "Search Discogs" feature works without one; `/discogs` shows a "not configured" notice until it's set. You can add records by hand indefinitely.
+- **Developing on it** — recommended. Without a token, the tests that exercise real Discogs behavior *skip* rather than fail, so the suite still runs green — but that green is thinner than it looks, and the two things a token covers are exactly the two that break quietly. See [Running the Tests](#running-the-tests).
+
 ### Create Environment Variables
 
-Create a `.env` file in the project root:
+Copy the committed template and fill it in:
+
+```bash
+cp .env.example .env
+```
+
+The template, for reference:
 
 ```ini
 # Template used to derive both the Postgres maintenance connection (for CREATE DATABASE)
@@ -130,7 +141,11 @@ CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
 # Powers the "Search Discogs" feature (searching Discogs' catalog and prefilling
 # a new pressing/wishlist item from a result). Optional — the rest of the app works
 # without it, but /discogs will show a "not configured" error until it's set.
-DISCOGS_TOKEN="your_discogs_personal_access_token"
+#
+# Leave it BLANK if you don't have one. Don't type a placeholder: any non-blank
+# value is taken as a real token, and the Discogs tests will then make real API
+# calls and fail on 401 instead of skipping cleanly.
+DISCOGS_TOKEN=""
 
 # Password for the /admin dashboard (username is always "admin"). Optional — if
 # omitted, it defaults to blank, which is fine for local development but never for
@@ -215,6 +230,35 @@ npm run test:e2e
 ```
 
 `npm test` covers utility functions, server actions, API route handlers, and interactive UI components — no database connection is required, all Prisma calls are mocked. The other three tiers hit a real (disposable, per-test) database and, for `test:contract`/`test:e2e`'s Discogs journey, the real Discogs API.
+
+### Testing without a Discogs token
+
+Nothing fails without `DISCOGS_TOKEN` — the parts that need one skip, and print a notice saying so. What you get:
+
+| Command | Without a token |
+| --- | --- |
+| `npm test` | Fully unaffected. Never touches Discogs. |
+| `npm run test:integration` | Fully unaffected. Discogs calls are intercepted by MSW and served from recorded fixtures in `test-support/fakes/fixtures/`. |
+| `npm run test:contract` | **All 3 skip.** Nothing verifies the fixtures still match Discogs' real responses. |
+| `npm run test:e2e` | **The Discogs prefill journey skips**; every other spec runs normally. |
+
+A skipped run says why:
+
+```
+⚠️  Discogs contract tests
+  These tests need a real Discogs API token and were SKIPPED.
+  Get one (free): https://www.discogs.com/settings/developers
+  Then add it to your .env:  DISCOGS_TOKEN="your-token-here"
+  See .env.example. Everything else in the suite runs without a token.
+```
+
+**Getting a token is recommended if you're working on this project**, and strongly so if you touch `lib/discogs.ts` or `lib/discogsMapping.ts`. The reason is that the skipped tests are the only two things standing between you and a specific silent failure: the rest of the suite tests Discogs behavior against *recorded fixtures*, and a fake cannot detect its own drift. If Discogs changes a field name or type, every mocked test keeps passing against the stale recording while the real app breaks. `test:contract` exists precisely to catch that, and it is the test that can't run without a token.
+
+Concretely, skipping these means no coverage of: whether the fixtures still match Discogs' live response shape, and whether searching Discogs actually prefills the Add Record form end to end in a browser.
+
+A token is free, takes about a minute ([instructions above](#obtain-a-discogs-api-token)), and is separate from whether the *app* needs one — it doesn't. See [Is a token required?](#obtain-a-discogs-api-token) for that distinction.
+
+If you don't have one, leave `DISCOGS_TOKEN` blank rather than filling in a placeholder — a non-blank value is treated as a real token and produces 401 failures instead of clean skips.
 
 ## Running the App
 

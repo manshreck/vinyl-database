@@ -13,7 +13,16 @@
  * .env would make DISCOGS_TOKEN truthy and turn a clean skip into a 401 failure —
  * exactly the confusing breakage the skip exists to prevent.
  */
-const PLACEHOLDERS = new Set(['testtoken', 'your-discogs-token', 'changeme', 'xxx'])
+const PLACEHOLDERS = new Set([
+  'testtoken',
+  'changeme',
+  'xxx',
+  // Every placeholder our own docs have ever suggested typing.
+  'your-discogs-token',
+  'your-token-here',
+  'your_token_here',
+  'your_discogs_personal_access_token',
+])
 
 /** The usable token, or null when it's absent, blank, or an obvious placeholder. */
 export function realDiscogsToken(): string | null {
