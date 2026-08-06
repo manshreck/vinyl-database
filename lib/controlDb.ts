@@ -1,11 +1,36 @@
 import { Pool } from 'pg'
+import { assertSafeSchemaName, controlConnectionConfig, controlSchema } from '@/lib/dbUrls'
 
 const globalForControlDb = globalThis as unknown as {
   controlPool?: Pool
   controlPoolReady?: Promise<void>
 }
 
-const BOOTSTRAP_SQL = `
+/**
+ * One round trip, deliberately: the schema is created and selected in the same batch
+ * as the tables that go in it.
+ *
+ * Splitting this across two `pool.query` calls leaves a window in which the pool can
+ * be closed between them — which the seam tests, reloading this module against
+ * successive scratch schemas, hit immediately ("Cannot use a pool after calling end").
+ * The explicit `SET search_path` also removes any question of whether the pool's
+ * connection-level setting resolves before the schema exists.
+ *
+ * The tables are unqualified so they land wherever that search_path points, which is
+ * what lets a test redirect the whole module with CONTROL_SCHEMA.
+ *
+ * `database_name` keeps its column name while now holding a *schema* name. The
+ * values are unchanged by the migration (tenant schemas reuse the old database
+ * names), so renaming the column would ripple through controlDb, session, every
+ * action and every test for no behavioral difference.
+ */
+function bootstrapSql(): string {
+  const schema = controlSchema()
+  assertSafeSchemaName(schema)
+  return `
+  CREATE SCHEMA IF NOT EXISTS "${schema}";
+  SET search_path TO "${schema}";
+
   CREATE TABLE IF NOT EXISTS users (
     id             SERIAL PRIMARY KEY,
     email          VARCHAR(255) NOT NULL UNIQUE,
@@ -30,16 +55,17 @@ const BOOTSTRAP_SQL = `
     expires_at TIMESTAMPTZ NOT NULL
   );
 `
+}
 
 function createPool() {
-  return new Pool({ connectionString: process.env.CONTROL_DATABASE_URL! })
+  return new Pool(controlConnectionConfig())
 }
 
 const controlPool = globalForControlDb.controlPool ?? createPool()
 if (process.env.NODE_ENV !== 'production') globalForControlDb.controlPool = controlPool
 
 const controlPoolReady =
-  globalForControlDb.controlPoolReady ?? controlPool.query(BOOTSTRAP_SQL).then(() => undefined)
+  globalForControlDb.controlPoolReady ?? controlPool.query(bootstrapSql()).then(() => undefined)
 if (process.env.NODE_ENV !== 'production') globalForControlDb.controlPoolReady = controlPoolReady
 
 async function ready() {

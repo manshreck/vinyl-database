@@ -1,9 +1,9 @@
 import { Client } from 'pg'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 
-/** Counts the rows in a tenant database's pressings table. */
-export async function countPressings(databaseName: string): Promise<number> {
-  const client = new Client({ connectionString: tenantConnectionString(databaseName) })
+/** Counts the rows in a tenant schema's pressings table. */
+export async function countPressings(schema: string): Promise<number> {
+  const client = new Client(schemaConnectionConfig(schema))
   await client.connect()
   try {
     const { rows } = await client.query('SELECT count(*)::int AS count FROM pressings')

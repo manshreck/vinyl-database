@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import type { Pool } from 'pg'
 import { listUsers, deleteUser } from '@/lib/controlDb'
-import { dropTenantDatabase } from '@/lib/provisionTenant'
+import { dropTenantSchema } from '@/lib/provisionTenant'
 import { TEST_EMAIL_DOMAIN } from './support/testUser'
 
 /**
@@ -17,7 +17,7 @@ export default async function globalTeardown(): Promise<void> {
   const testUsers = users.filter((u) => u.email.endsWith(TEST_EMAIL_DOMAIN))
 
   for (const user of testUsers) {
-    await dropTenantDatabase(user.databaseName)
+    await dropTenantSchema(user.databaseName)
     await deleteUser(user.id)
   }
 

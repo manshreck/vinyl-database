@@ -7,8 +7,8 @@ const mockFindUserByEmail = jest.fn()
 const mockCreateUser = jest.fn()
 const mockDeleteUser = jest.fn()
 const mockHashPassword = jest.fn()
-const mockCreateTenantDatabase = jest.fn()
-const mockGenerateDatabaseName = jest.fn()
+const mockCreateTenantSchema = jest.fn()
+const mockGenerateSchemaName = jest.fn()
 const mockCreateSessionCookie = jest.fn()
 const mockRedirect = jest.fn()
 
@@ -23,8 +23,8 @@ jest.mock('@/lib/password', () => ({
 }))
 
 jest.mock('@/lib/provisionTenant', () => ({
-  createTenantDatabase: (...args: unknown[]) => mockCreateTenantDatabase(...args),
-  generateDatabaseName: (...args: unknown[]) => mockGenerateDatabaseName(...args),
+  createTenantSchema: (...args: unknown[]) => mockCreateTenantSchema(...args),
+  generateSchemaName: (...args: unknown[]) => mockGenerateSchemaName(...args),
 }))
 
 jest.mock('@/lib/session', () => ({
@@ -52,14 +52,14 @@ describe('registerUser', () => {
     jest.clearAllMocks()
     mockFindUserByEmail.mockResolvedValue(null)
     mockHashPassword.mockReturnValue('hashed:password')
-    mockGenerateDatabaseName.mockReturnValue('vinyl_user_abc123abc123')
+    mockGenerateSchemaName.mockReturnValue('vinyl_user_abc123abc123')
     mockCreateUser.mockResolvedValue({
       id: 1,
       email: 'new@example.com',
       passwordHash: 'hashed:password',
       databaseName: 'vinyl_user_abc123abc123',
     })
-    mockCreateTenantDatabase.mockResolvedValue(undefined)
+    mockCreateTenantSchema.mockResolvedValue(undefined)
   })
 
   it('rejects mismatched passwords without touching the database', async () => {
@@ -83,16 +83,16 @@ describe('registerUser', () => {
     expect(mockCreateUser).not.toHaveBeenCalled()
   })
 
-  it('creates the user, provisions a tenant database, and starts a session', async () => {
+  it('creates the user, provisions a tenant schema, and starts a session', async () => {
     await registerUser(null, makeFormData(VALID_FIELDS))
     expect(mockCreateUser).toHaveBeenCalledWith('new@example.com', 'hashed:password', 'vinyl_user_abc123abc123')
-    expect(mockCreateTenantDatabase).toHaveBeenCalledWith('vinyl_user_abc123abc123')
+    expect(mockCreateTenantSchema).toHaveBeenCalledWith('vinyl_user_abc123abc123')
     expect(mockCreateSessionCookie).toHaveBeenCalledWith(1)
     expect(mockRedirect).toHaveBeenCalledWith('/setup')
   })
 
   it('rolls back the user row when tenant provisioning fails', async () => {
-    mockCreateTenantDatabase.mockRejectedValue(new Error('provisioning failed'))
+    mockCreateTenantSchema.mockRejectedValue(new Error('provisioning failed'))
     const result = await registerUser(null, makeFormData(VALID_FIELDS))
     expect(mockDeleteUser).toHaveBeenCalledWith(1)
     expect(mockCreateSessionCookie).not.toHaveBeenCalled()

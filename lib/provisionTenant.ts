@@ -2,22 +2,40 @@ import { randomBytes } from 'crypto'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { Client } from 'pg'
-import { adminConnectionString, tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 import { FORMATS, GENRES } from '@/prisma/referenceData'
 
-const DATABASE_NAME_PATTERN = /^vinyl_user_[a-f0-9]{12}$/
+/**
+ * Which schemas this module may create or drop. Narrower than dbUrls' interpolation
+ * guard on purpose: that one asks "is this string safe in a statement", this one asks
+ * "is this a tenant schema we own" — so a typo or a stray `control` can never reach
+ * `DROP SCHEMA ... CASCADE`.
+ */
+const TENANT_SCHEMA_PATTERN = /^vinyl_user_[a-f0-9]{12}$/
 
 const TENANT_SCHEMA_SQL = readFileSync(
   join(process.cwd(), 'prisma/tenant-schema.sql'),
   'utf8'
 )
 
-export function generateDatabaseName(): string {
+export function generateSchemaName(): string {
   return `vinyl_user_${randomBytes(6).toString('hex')}`
 }
 
-async function seedReferenceData(databaseName: string) {
-  const client = new Client({ connectionString: tenantConnectionString(databaseName) })
+function assertTenantSchema(schema: string, verb: string): void {
+  if (!TENANT_SCHEMA_PATTERN.test(schema)) {
+    throw new Error(`Refusing to ${verb} invalid tenant schema name: ${schema}`)
+  }
+}
+
+/**
+ * Applies the tenant DDL and reference data over a connection whose search_path is
+ * the new schema, so tenant-schema.sql's unqualified CREATE TABLEs land there. The
+ * file needs no changes for this: its `CREATE SCHEMA IF NOT EXISTS "public"` line is
+ * a harmless no-op.
+ */
+async function seedSchema(schema: string) {
+  const client = new Client(schemaConnectionConfig(schema))
   await client.connect()
   try {
     await client.query(TENANT_SCHEMA_SQL)
@@ -36,39 +54,42 @@ async function seedReferenceData(databaseName: string) {
   }
 }
 
-/** Creates a fresh Postgres database for a tenant, applies the schema, and seeds reference data. */
-export async function createTenantDatabase(databaseName: string): Promise<void> {
-  if (!DATABASE_NAME_PATTERN.test(databaseName)) {
-    throw new Error(`Refusing to provision invalid database name: ${databaseName}`)
-  }
+/**
+ * Creates a tenant's schema, applies the schema DDL, and seeds reference data.
+ *
+ * One ordinary connection does all of this. The previous database-per-tenant version
+ * needed a second, privileged connection to the maintenance database purely because
+ * CREATE DATABASE cannot run inside another database — CREATE SCHEMA has no such
+ * constraint, which removes both that privilege requirement and a failure mode.
+ */
+export async function createTenantSchema(schema: string): Promise<void> {
+  assertTenantSchema(schema, 'provision')
 
-  const admin = new Client({ connectionString: adminConnectionString() })
-  await admin.connect()
+  const client = new Client({ connectionString: schemaConnectionConfig(schema).connectionString })
+  await client.connect()
   try {
-    await admin.query(`CREATE DATABASE "${databaseName}"`)
+    await client.query(`CREATE SCHEMA "${schema}"`)
   } finally {
-    await admin.end()
+    await client.end()
   }
 
   try {
-    await seedReferenceData(databaseName)
+    await seedSchema(schema)
   } catch (err) {
-    await dropTenantDatabase(databaseName)
+    await dropTenantSchema(schema)
     throw err
   }
 }
 
-/** Drops a tenant database. Used to roll back a failed provisioning attempt. */
-export async function dropTenantDatabase(databaseName: string): Promise<void> {
-  if (!DATABASE_NAME_PATTERN.test(databaseName)) {
-    throw new Error(`Refusing to drop invalid database name: ${databaseName}`)
-  }
+/** Drops a tenant's schema and everything in it. Also rolls back a failed provision. */
+export async function dropTenantSchema(schema: string): Promise<void> {
+  assertTenantSchema(schema, 'drop')
 
-  const admin = new Client({ connectionString: adminConnectionString() })
-  await admin.connect()
+  const client = new Client({ connectionString: schemaConnectionConfig(schema).connectionString })
+  await client.connect()
   try {
-    await admin.query(`DROP DATABASE IF EXISTS "${databaseName}"`)
+    await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`)
   } finally {
-    await admin.end()
+    await client.end()
   }
 }

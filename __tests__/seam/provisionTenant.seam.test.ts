@@ -16,16 +16,16 @@
  */
 import { Client } from 'pg'
 import {
-  createTenantDatabase,
-  dropTenantDatabase,
-  generateDatabaseName,
+  createTenantSchema,
+  dropTenantSchema,
+  generateSchemaName,
 } from '@/lib/provisionTenant'
-import { tenantConnectionString } from '@/lib/dbUrls'
-import { databaseExists } from '@/test-support/db/scratchDatabase'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
+import { schemaExists } from '@/test-support/db/scratchSchema'
 import { FORMATS, GENRES } from '@/prisma/referenceData'
 
 async function queryTenant(name: string, sql: string) {
-  const client = new Client({ connectionString: tenantConnectionString(name) })
+  const client = new Client(schemaConnectionConfig(name))
   await client.connect()
   try {
     return await client.query(sql)
@@ -36,8 +36,8 @@ async function queryTenant(name: string, sql: string) {
 
 describe('provisionTenant.ts ↔ real Postgres (seam)', () => {
   it('creates a database with the expected tables and seeded formats/genres', async () => {
-    const name = generateDatabaseName()
-    await createTenantDatabase(name)
+    const name = generateSchemaName()
+    await createTenantSchema(name)
     try {
       const tables = await queryTenant(
         name,
@@ -63,28 +63,28 @@ describe('provisionTenant.ts ↔ real Postgres (seam)', () => {
       const genreRows = await queryTenant(name, `SELECT name FROM genres`)
       expect(genreRows.rows.map((r) => r.name).sort()).toEqual([...GENRES].sort())
     } finally {
-      await dropTenantDatabase(name)
+      await dropTenantSchema(name)
     }
   }, 30000)
 
-  it('rejects an invalid database name without touching Postgres', async () => {
-    await expect(createTenantDatabase('not-a-valid-name')).rejects.toThrow(
-      'Refusing to provision invalid database name'
+  it('rejects an invalid schema name without touching Postgres', async () => {
+    await expect(createTenantSchema('not-a-valid-name')).rejects.toThrow(
+      'Refusing to provision invalid tenant schema name'
     )
-    expect(await databaseExists('not-a-valid-name')).toBe(false)
+    expect(await schemaExists('not-a-valid-name')).toBe(false)
   })
 
-  it('dropTenantDatabase removes a database that createTenantDatabase provisioned', async () => {
-    const name = generateDatabaseName()
-    await createTenantDatabase(name)
-    expect(await databaseExists(name)).toBe(true)
+  it('dropTenantSchema removes a database that createTenantSchema provisioned', async () => {
+    const name = generateSchemaName()
+    await createTenantSchema(name)
+    expect(await schemaExists(name)).toBe(true)
 
-    await dropTenantDatabase(name)
-    expect(await databaseExists(name)).toBe(false)
+    await dropTenantSchema(name)
+    expect(await schemaExists(name)).toBe(false)
   }, 30000)
 
   it('rolls back (drops) the database it just created when seeding fails', async () => {
-    const name = generateDatabaseName()
+    const name = generateSchemaName()
     const realQuery = Client.prototype.query
     const querySpy = jest
       .spyOn(Client.prototype, 'query')
@@ -97,11 +97,11 @@ describe('provisionTenant.ts ↔ real Postgres (seam)', () => {
       } as unknown as typeof Client.prototype.query)
 
     try {
-      await expect(createTenantDatabase(name)).rejects.toThrow('simulated seeding failure')
+      await expect(createTenantSchema(name)).rejects.toThrow('simulated seeding failure')
     } finally {
       querySpy.mockRestore()
     }
 
-    expect(await databaseExists(name)).toBe(false)
+    expect(await schemaExists(name)).toBe(false)
   }, 30000)
 })

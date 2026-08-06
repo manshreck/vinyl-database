@@ -1,5 +1,5 @@
 import { Client } from 'pg'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 import { artistSortKey } from '@/lib/artistSort'
 
 /**
@@ -95,8 +95,8 @@ function csvRow(values: unknown[]): string {
  * Uses a short-lived connection rather than the cached tenant client: an export is a
  * one-shot operation, and has no reason to populate a pool kept warm for 30 minutes.
  */
-export async function buildCollectionCsv(databaseName: string): Promise<string> {
-  const client = new Client({ connectionString: tenantConnectionString(databaseName) })
+export async function buildCollectionCsv(schema: string): Promise<string> {
+  const client = new Client(schemaConnectionConfig(schema))
   await client.connect()
 
   try {

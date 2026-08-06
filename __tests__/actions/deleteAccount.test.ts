@@ -6,7 +6,7 @@ import { deleteAccount } from '@/app/actions/deleteAccount'
 const mockFindUserByEmail = jest.fn()
 const mockDeleteUser = jest.fn()
 const mockVerifyPassword = jest.fn()
-const mockDropTenantDatabase = jest.fn()
+const mockDropTenantSchema = jest.fn()
 const mockClearSessionCookie = jest.fn()
 const mockRedirect = jest.fn()
 
@@ -20,7 +20,7 @@ jest.mock('@/lib/password', () => ({
 }))
 
 jest.mock('@/lib/provisionTenant', () => ({
-  dropTenantDatabase: (...args: unknown[]) => mockDropTenantDatabase(...args),
+  dropTenantSchema: (...args: unknown[]) => mockDropTenantSchema(...args),
 }))
 
 jest.mock('@/lib/session', () => ({
@@ -48,7 +48,7 @@ describe('deleteAccount', () => {
       databaseName: 'vinyl_user_test',
     })
     mockVerifyPassword.mockReturnValue(true)
-    mockDropTenantDatabase.mockResolvedValue(undefined)
+    mockDropTenantSchema.mockResolvedValue(undefined)
     mockDeleteUser.mockResolvedValue(undefined)
     mockClearSessionCookie.mockResolvedValue(undefined)
   })
@@ -58,7 +58,7 @@ describe('deleteAccount', () => {
     const result = await deleteAccount(null, makeFormData({ password: 'wrong-password' }))
 
     expect(result).toEqual({ error: 'Incorrect password.' })
-    expect(mockDropTenantDatabase).not.toHaveBeenCalled()
+    expect(mockDropTenantSchema).not.toHaveBeenCalled()
     expect(mockDeleteUser).not.toHaveBeenCalled()
     expect(mockClearSessionCookie).not.toHaveBeenCalled()
     expect(mockRedirect).not.toHaveBeenCalled()
@@ -69,7 +69,7 @@ describe('deleteAccount', () => {
     const result = await deleteAccount(null, makeFormData({ password: 'anything' }))
 
     expect(result).toEqual({ error: 'Incorrect password.' })
-    expect(mockDropTenantDatabase).not.toHaveBeenCalled()
+    expect(mockDropTenantSchema).not.toHaveBeenCalled()
   })
 
   it('verifies the password against the session user, not arbitrary input', async () => {
@@ -78,22 +78,22 @@ describe('deleteAccount', () => {
     expect(mockVerifyPassword).toHaveBeenCalledWith('correct-password', 'stored-hash')
   })
 
-  it('drops the tenant database, deletes the user, clears the session, and redirects', async () => {
+  it('drops the tenant schema, deletes the user, clears the session, and redirects', async () => {
     await deleteAccount(null, makeFormData({ password: 'correct-password' }))
 
-    expect(mockDropTenantDatabase).toHaveBeenCalledWith('vinyl_user_test')
+    expect(mockDropTenantSchema).toHaveBeenCalledWith('vinyl_user_test')
     expect(mockDeleteUser).toHaveBeenCalledWith(1)
     expect(mockClearSessionCookie).toHaveBeenCalled()
     expect(mockRedirect).toHaveBeenCalledWith('/login')
   })
 
-  it('drops the tenant database before deleting the user row', async () => {
+  it('drops the tenant schema before deleting the user row', async () => {
     const order: string[] = []
-    mockDropTenantDatabase.mockImplementation(async () => { order.push('dropTenantDatabase') })
+    mockDropTenantSchema.mockImplementation(async () => { order.push('dropTenantSchema') })
     mockDeleteUser.mockImplementation(async () => { order.push('deleteUser') })
 
     await deleteAccount(null, makeFormData({ password: 'correct-password' }))
 
-    expect(order).toEqual(['dropTenantDatabase', 'deleteUser'])
+    expect(order).toEqual(['dropTenantSchema', 'deleteUser'])
   })
 })

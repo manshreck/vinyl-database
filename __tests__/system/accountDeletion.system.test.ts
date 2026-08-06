@@ -23,13 +23,13 @@
  */
 import { hashPassword } from '@/lib/password'
 import {
-  createScratchDatabase,
-  databaseExists,
-  dropScratchDatabase,
-  generateScratchDatabaseName,
-} from '@/test-support/db/scratchDatabase'
+  createScratchSchema,
+  schemaExists,
+  dropScratchSchema,
+  generateScratchSchemaName,
+} from '@/test-support/db/scratchSchema'
 import { resetControlDbGlobals } from '@/test-support/db/controlDbGlobals'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 
 const mockRequireSession = jest.fn()
 const mockClearSessionCookie = jest.fn()
@@ -61,12 +61,12 @@ describe('deleteAccount assembling real controlDb + real provisionTenant (system
   let deleteAccount: DeleteAccountModule['deleteAccount']
 
   beforeAll(async () => {
-    controlDbName = generateScratchDatabaseName()
-    await createScratchDatabase(controlDbName)
+    controlDbName = generateScratchSchemaName()
+    await createScratchSchema(controlDbName)
 
     await resetControlDbGlobals()
     jest.resetModules()
-    process.env.CONTROL_DATABASE_URL = tenantConnectionString(controlDbName)
+    process.env.CONTROL_SCHEMA = controlDbName
 
     // Loaded together, in the same (post-reset) module registry, so deleteAccount.ts's
     // own `import ... from '@/lib/controlDb'` resolves to this same controlDb
@@ -78,7 +78,7 @@ describe('deleteAccount assembling real controlDb + real provisionTenant (system
 
   afterAll(async () => {
     await resetControlDbGlobals()
-    await dropScratchDatabase(controlDbName)
+    await dropScratchSchema(controlDbName)
   }, 30000)
 
   beforeEach(() => {
@@ -88,9 +88,9 @@ describe('deleteAccount assembling real controlDb + real provisionTenant (system
   it('removes both the real user row and the real tenant database', async () => {
     const email = 'system-delete-success@vinyl-test.local'
     const password = 'correct-password-123'
-    const databaseName = provisionTenant.generateDatabaseName()
+    const databaseName = provisionTenant.generateSchemaName()
 
-    await provisionTenant.createTenantDatabase(databaseName)
+    await provisionTenant.createTenantSchema(databaseName)
     const user = await controlDb.createUser(email, hashPassword(password), databaseName)
     mockRequireSession.mockResolvedValue({ userId: user.id, email, databaseName })
 
@@ -99,15 +99,15 @@ describe('deleteAccount assembling real controlDb + real provisionTenant (system
     expect(mockClearSessionCookie).toHaveBeenCalled()
     expect(mockRedirect).toHaveBeenCalledWith('/login')
     expect(await controlDb.findUserByEmail(email)).toBeNull()
-    expect(await databaseExists(databaseName)).toBe(false)
+    expect(await schemaExists(databaseName)).toBe(false)
   }, 30000)
 
   it('leaves the real user row and tenant database intact when the password is wrong', async () => {
     const email = 'system-delete-wrong-password@vinyl-test.local'
     const password = 'correct-password-123'
-    const databaseName = provisionTenant.generateDatabaseName()
+    const databaseName = provisionTenant.generateSchemaName()
 
-    await provisionTenant.createTenantDatabase(databaseName)
+    await provisionTenant.createTenantSchema(databaseName)
     const user = await controlDb.createUser(email, hashPassword(password), databaseName)
     mockRequireSession.mockResolvedValue({ userId: user.id, email, databaseName })
 
@@ -117,9 +117,9 @@ describe('deleteAccount assembling real controlDb + real provisionTenant (system
       expect(result).toEqual({ error: 'Incorrect password.' })
       expect(mockRedirect).not.toHaveBeenCalled()
       expect(await controlDb.findUserByEmail(email)).not.toBeNull()
-      expect(await databaseExists(databaseName)).toBe(true)
+      expect(await schemaExists(databaseName)).toBe(true)
     } finally {
-      await provisionTenant.dropTenantDatabase(databaseName)
+      await provisionTenant.dropTenantSchema(databaseName)
       await controlDb.deleteUser(user.id)
     }
   }, 30000)

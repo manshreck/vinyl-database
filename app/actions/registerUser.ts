@@ -2,7 +2,7 @@
 
 import { createUser, deleteUser, findUserByEmail, type ControlUser } from '@/lib/controlDb'
 import { hashPassword } from '@/lib/password'
-import { createTenantDatabase, generateDatabaseName } from '@/lib/provisionTenant'
+import { createTenantSchema, generateSchemaName } from '@/lib/provisionTenant'
 import { createSessionCookie } from '@/lib/session'
 import { redirect } from 'next/navigation'
 
@@ -34,7 +34,7 @@ export async function registerUser(_prevState: FormState, formData: FormData): P
   let user: ControlUser | undefined
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      user = await createUser(email, passwordHash, generateDatabaseName())
+      user = await createUser(email, passwordHash, generateSchemaName())
       break
     } catch (err) {
       if (isDatabaseNameCollision(err) && attempt < 2) continue
@@ -44,7 +44,7 @@ export async function registerUser(_prevState: FormState, formData: FormData): P
   if (!user) return { error: 'Could not create account. Please try again.' }
 
   try {
-    await createTenantDatabase(user.databaseName)
+    await createTenantSchema(user.databaseName)
   } catch (err) {
     await deleteUser(user.id)
     console.error('Tenant provisioning failed:', err)

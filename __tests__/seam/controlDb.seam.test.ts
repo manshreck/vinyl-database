@@ -4,7 +4,7 @@
  * Seam integration test: controlDb.ts ↔ real Postgres. See TESTING.md §2.3.
  *
  * controlDb.ts memoizes its Pool and bootstrap-SQL promise on globalThis (to survive
- * Next.js dev-mode hot reload) and reads CONTROL_DATABASE_URL at module-load time.
+ * Next.js dev-mode hot reload) and resolves its control schema at connect time.
  * loadControlDb() below points that env var at a fresh scratch database, resets the
  * module registry, and clears the globalThis cache so each test gets its own real
  * Pool against its own real, disposable database — a proxy, not a fake, because the
@@ -13,12 +13,12 @@
  * to reimplement from assumptions rather than verify.
  */
 import {
-  createScratchDatabase,
-  dropScratchDatabase,
-  generateScratchDatabaseName,
-} from '@/test-support/db/scratchDatabase'
+  createScratchSchema,
+  dropScratchSchema,
+  generateScratchSchemaName,
+} from '@/test-support/db/scratchSchema'
 import { resetControlDbGlobals } from '@/test-support/db/controlDbGlobals'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 
 type ControlDbModule = typeof import('@/lib/controlDb')
 
@@ -26,7 +26,7 @@ type ControlDbModule = typeof import('@/lib/controlDb')
 async function loadControlDb(databaseName: string): Promise<ControlDbModule> {
   await resetControlDbGlobals()
   jest.resetModules()
-  process.env.CONTROL_DATABASE_URL = tenantConnectionString(databaseName)
+  process.env.CONTROL_SCHEMA = databaseName
   return import('@/lib/controlDb')
 }
 
@@ -35,14 +35,14 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
   let controlDb: ControlDbModule
 
   beforeEach(async () => {
-    databaseName = generateScratchDatabaseName()
-    await createScratchDatabase(databaseName)
+    databaseName = generateScratchSchemaName()
+    await createScratchSchema(databaseName)
     controlDb = await loadControlDb(databaseName)
   }, 30000)
 
   afterEach(async () => {
     await resetControlDbGlobals()
-    await dropScratchDatabase(databaseName)
+    await dropScratchSchema(databaseName)
   }, 30000)
 
   it('bootstrap SQL is idempotent when applied to an already-provisioned database', async () => {

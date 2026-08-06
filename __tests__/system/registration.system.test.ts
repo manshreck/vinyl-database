@@ -25,12 +25,12 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import {
-  createScratchDatabase,
-  dropScratchDatabase,
-  generateScratchDatabaseName,
-} from '@/test-support/db/scratchDatabase'
+  createScratchSchema,
+  dropScratchSchema,
+  generateScratchSchemaName,
+} from '@/test-support/db/scratchSchema'
 import { resetControlDbGlobals } from '@/test-support/db/controlDbGlobals'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 
 const mockCreateSessionCookie = jest.fn()
 const mockRedirect = jest.fn()
@@ -62,12 +62,12 @@ describe('registerUser assembling real controlDb + real provisionTenant (system)
   let registerUser: RegisterUserModule['registerUser']
 
   beforeAll(async () => {
-    controlDbName = generateScratchDatabaseName()
-    await createScratchDatabase(controlDbName)
+    controlDbName = generateScratchSchemaName()
+    await createScratchSchema(controlDbName)
 
     await resetControlDbGlobals()
     jest.resetModules()
-    process.env.CONTROL_DATABASE_URL = tenantConnectionString(controlDbName)
+    process.env.CONTROL_SCHEMA = controlDbName
 
     // Loaded together, in the same (post-reset) module registry, so registerUser.ts's
     // own `import ... from '@/lib/controlDb'` resolves to this same controlDb
@@ -79,7 +79,7 @@ describe('registerUser assembling real controlDb + real provisionTenant (system)
 
   afterAll(async () => {
     await resetControlDbGlobals()
-    await dropScratchDatabase(controlDbName)
+    await dropScratchSchema(controlDbName)
   }, 30000)
 
   beforeEach(() => {
@@ -102,7 +102,7 @@ describe('registerUser assembling real controlDb + real provisionTenant (system)
 
     // The tenant database registerUser just provisioned is real and immediately
     // queryable through the real generated Prisma Client — not just "a row exists".
-    const adapter = new PrismaPg({ connectionString: tenantConnectionString(user!.databaseName) })
+    const adapter = new PrismaPg(schemaConnectionConfig(user!.databaseName), { schema: user!.databaseName })
     const tenantPrisma = new PrismaClient({ adapter })
     try {
       const formats = await tenantPrisma.format.findMany()
@@ -111,16 +111,16 @@ describe('registerUser assembling real controlDb + real provisionTenant (system)
       expect(genres.length).toBeGreaterThan(0)
     } finally {
       await tenantPrisma.$disconnect()
-      await provisionTenant.dropTenantDatabase(user!.databaseName)
+      await provisionTenant.dropTenantSchema(user!.databaseName)
     }
   }, 30000)
 
   it('rolls back the real user row when tenant provisioning fails', async () => {
     // SWC compiles named exports as non-configurable, so jest.spyOn can't stub
-    // createTenantDatabase directly here (unlike registerUser.test.ts's mocked
+    // createTenantSchema directly here (unlike registerUser.test.ts's mocked
     // module). Forcing a genuine connection failure — DATABASE_URL pointed at an
-    // unreachable address for just this call — triggers createTenantDatabase's real
-    // failure path instead: CONTROL_DATABASE_URL is untouched, so createUser and the
+    // unreachable address for just this call — triggers createTenantSchema's real
+    // failure path instead: CONTROL_SCHEMA is untouched, so createUser and the
     // eventual deleteUser still hit the real scratch control database throughout.
     const email = 'system-register-failure@vinyl-test.local'
     const originalDatabaseUrl = process.env.DATABASE_URL

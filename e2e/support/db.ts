@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 import { findUserByEmail } from '@/lib/controlDb'
 
 /**
@@ -18,7 +18,9 @@ async function withTenantPrisma<T>(
   const user = await findUserByEmail(email)
   if (!user) throw new Error(`No control-db user found for ${email} — register it first`)
 
-  const adapter = new PrismaPg({ connectionString: tenantConnectionString(user.databaseName) })
+  const adapter = new PrismaPg(schemaConnectionConfig(user.databaseName), {
+    schema: user.databaseName,
+  })
   const prisma = new PrismaClient({ adapter })
   try {
     return await fn(prisma)

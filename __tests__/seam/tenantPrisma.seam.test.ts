@@ -19,13 +19,13 @@
  * proving the fake faithful; this one exists on its own so the schema-drift gap keeps
  * a dedicated test even if the fake or its contract test is ever removed.
  */
-import { withScratchTenantDatabase, type ScratchTenantDatabase } from '@/test-support/db/scratchDatabase'
+import { withScratchTenantSchema, type ScratchTenantSchema } from '@/test-support/db/scratchSchema'
 
 describe('generated Prisma Client ↔ tenant-schema.sql database (seam)', () => {
-  let scratch: ScratchTenantDatabase
+  let scratch: ScratchTenantSchema
 
   beforeAll(async () => {
-    scratch = await withScratchTenantDatabase()
+    scratch = await withScratchTenantSchema()
   }, 30000)
 
   afterAll(async () => {

@@ -16,13 +16,13 @@
  * Date lost microseconds, so restored rows silently differed from the originals.
  */
 import {
-  generateScratchDatabaseName,
-  createScratchDatabase,
-  dropScratchDatabase,
+  generateScratchSchemaName,
+  createScratchSchema,
+  dropScratchSchema,
   applyTenantSchema,
-  runSqlOnScratchDatabase,
-} from '@/test-support/db/scratchDatabase'
-import { tenantConnectionString } from '@/lib/dbUrls'
+  runSqlOnScratchSchema,
+} from '@/test-support/db/scratchSchema'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 import { buildTenantSqlExport } from '@/lib/exportTenant'
 import { Client } from 'pg'
 
@@ -56,7 +56,7 @@ const TABLES = [
 
 /** Column-wise so the comparison survives a physical column-order difference. */
 async function contentFingerprint(databaseName: string): Promise<Record<string, string>> {
-  const client = new Client({ connectionString: tenantConnectionString(databaseName) })
+  const client = new Client(schemaConnectionConfig(databaseName))
   await client.connect()
   try {
     const out: Record<string, string> = {}
@@ -79,23 +79,23 @@ async function contentFingerprint(databaseName: string): Promise<Record<string, 
 }
 
 describe('buildTenantSqlExport round trip (system)', () => {
-  const source = generateScratchDatabaseName()
-  const restored = generateScratchDatabaseName()
+  const source = generateScratchSchemaName()
+  const restored = generateScratchSchemaName()
   let exportSql: string
 
   beforeAll(async () => {
-    await createScratchDatabase(source)
+    await createScratchSchema(source)
     await applyTenantSchema(source)
-    await runSqlOnScratchDatabase(source, SEED_SQL)
+    await runSqlOnScratchSchema(source, SEED_SQL)
     exportSql = await buildTenantSqlExport(source)
 
-    await createScratchDatabase(restored)
-    await runSqlOnScratchDatabase(restored, exportSql)
+    await createScratchSchema(restored)
+    await runSqlOnScratchSchema(restored, exportSql)
   }, 60000)
 
   afterAll(async () => {
-    await dropScratchDatabase(source)
-    await dropScratchDatabase(restored)
+    await dropScratchSchema(source)
+    await dropScratchSchema(restored)
   }, 30000)
 
   it('produces a file that restores into an empty database without error', () => {
@@ -114,7 +114,7 @@ describe('buildTenantSqlExport round trip (system)', () => {
   })
 
   it('preserves microsecond timestamp precision', async () => {
-    const client = new Client({ connectionString: tenantConnectionString(restored) })
+    const client = new Client(schemaConnectionConfig(restored))
     await client.connect()
     try {
       const { rows } = await client.query<{ created_at: string }>(
@@ -127,7 +127,7 @@ describe('buildTenantSqlExport round trip (system)', () => {
   })
 
   it('escapes apostrophes in both data and text fields', async () => {
-    const client = new Client({ connectionString: tenantConnectionString(restored) })
+    const client = new Client(schemaConnectionConfig(restored))
     await client.connect()
     try {
       const { rows: artists } = await client.query(
@@ -144,7 +144,7 @@ describe('buildTenantSqlExport round trip (system)', () => {
   })
 
   it('advances sequences past the restored rows so the next insert does not collide', async () => {
-    const client = new Client({ connectionString: tenantConnectionString(restored) })
+    const client = new Client(schemaConnectionConfig(restored))
     await client.connect()
     try {
       const { rows: before } = await client.query<{ max: number }>(
@@ -162,19 +162,19 @@ describe('buildTenantSqlExport round trip (system)', () => {
   // Guards schema drift, not user data. A table added to tenant-schema.sql but not to
   // TABLES_IN_RESTORE_ORDER would otherwise be omitted from every export in silence.
   it('refuses to export rather than silently omit a table it was never told about', async () => {
-    await runSqlOnScratchDatabase(source, 'CREATE TABLE stowaway (id int)')
+    await runSqlOnScratchSchema(source, 'CREATE TABLE stowaway (id int)')
     try {
       await expect(buildTenantSqlExport(source)).rejects.toThrow(/stowaway/)
     } finally {
-      await runSqlOnScratchDatabase(source, 'DROP TABLE stowaway')
+      await runSqlOnScratchSchema(source, 'DROP TABLE stowaway')
     }
   }, 30000)
 
   // The inverse of the guard above, and the case a user actually hits: a brand-new
   // account with nothing in it exports fine, as schema plus zero INSERTs.
   it('exports an empty database without complaint', async () => {
-    const empty = generateScratchDatabaseName()
-    await createScratchDatabase(empty)
+    const empty = generateScratchSchemaName()
+    await createScratchSchema(empty)
     await applyTenantSchema(empty)
     try {
       const sql = await buildTenantSqlExport(empty)
@@ -182,7 +182,7 @@ describe('buildTenantSqlExport round trip (system)', () => {
       expect(sql).toContain('-- pressings: 0 rows')
       expect(sql).not.toContain('INSERT INTO')
     } finally {
-      await dropScratchDatabase(empty)
+      await dropScratchSchema(empty)
     }
   }, 60000)
 })

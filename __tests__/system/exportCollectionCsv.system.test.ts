@@ -12,12 +12,12 @@
  * and the assertion is that a parser recovers the original values.
  */
 import {
-  generateScratchDatabaseName,
-  createScratchDatabase,
-  dropScratchDatabase,
+  generateScratchSchemaName,
+  createScratchSchema,
+  dropScratchSchema,
   applyTenantSchema,
-  runSqlOnScratchDatabase,
-} from '@/test-support/db/scratchDatabase'
+  runSqlOnScratchSchema,
+} from '@/test-support/db/scratchSchema'
 import { buildCollectionCsv } from '@/lib/exportCollectionCsv'
 
 /** Every hazard present in the real collection, plus a newline for good measure. */
@@ -67,20 +67,20 @@ function parseCsv(text: string): string[][] {
 }
 
 describe('buildCollectionCsv (system)', () => {
-  const db = generateScratchDatabaseName()
+  const db = generateScratchSchemaName()
   let csv: string
   let rows: string[][]
 
   beforeAll(async () => {
-    await createScratchDatabase(db)
+    await createScratchSchema(db)
     await applyTenantSchema(db)
-    await runSqlOnScratchDatabase(db, SEED_SQL)
+    await runSqlOnScratchSchema(db, SEED_SQL)
     csv = await buildCollectionCsv(db)
     rows = parseCsv(csv)
   }, 60000)
 
   afterAll(async () => {
-    await dropScratchDatabase(db)
+    await dropScratchSchema(db)
   }, 30000)
 
   it('starts with a UTF-8 BOM so spreadsheets read accents correctly', () => {
@@ -134,15 +134,15 @@ describe('buildCollectionCsv (system)', () => {
   })
 
   it('exports a header-only file for an empty collection', async () => {
-    const empty = generateScratchDatabaseName()
-    await createScratchDatabase(empty)
+    const empty = generateScratchSchemaName()
+    await createScratchSchema(empty)
     await applyTenantSchema(empty)
     try {
       const parsed = parseCsv(await buildCollectionCsv(empty))
       expect(parsed).toHaveLength(1)
       expect(parsed[0][0]).toBe('Artist')
     } finally {
-      await dropScratchDatabase(empty)
+      await dropScratchSchema(empty)
     }
   }, 60000)
 })

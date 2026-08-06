@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { Client, types as pgTypes } from 'pg'
-import { tenantConnectionString } from '@/lib/dbUrls'
+import { schemaConnectionConfig } from '@/lib/dbUrls'
 
 /**
  * Types whose Postgres text form carries more than the JS value would.
@@ -123,21 +123,33 @@ function assertEveryTableIsExported(actualTables: string[]): void {
   }
 }
 
-/** Builds a self-contained .sql file restoring this tenant's schema and every row. */
+/**
+ * Builds a self-contained .sql file restoring this tenant's schema and every row.
+ *
+ * Reads from `schema`, but the file it emits targets `public` and is unqualified
+ * throughout — the reader is a user restoring into a database of their own, where
+ * their records should simply be the contents, not sit in a schema named after an
+ * internal id. The admin whole-system backup is the one that preserves schema names;
+ * see lib/exportSystem.ts.
+ */
 export async function buildTenantSqlExport(
-  databaseName: string,
+  schema: string,
   generatedAt: Date = new Date()
 ): Promise<string> {
   const client = new Client({
-    connectionString: tenantConnectionString(databaseName),
+    ...schemaConnectionConfig(schema),
     types: preserveExactText,
   })
   await client.connect()
 
   try {
+    // Scoped to this tenant's schema: with one database, 'public' would inspect the
+    // wrong (empty) namespace, and looking across all schemas would trip the
+    // unknown-table guard on every *other* tenant.
     const { rows: tableRows } = await client.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
+       WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+      [schema]
     )
     assertEveryTableIsExported(tableRows.map((r) => r.table_name))
 

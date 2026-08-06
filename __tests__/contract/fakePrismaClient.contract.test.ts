@@ -14,7 +14,7 @@
  */
 import type { PrismaClient } from '@prisma/client'
 import { createFakePrismaClient, type FakePrismaClient } from '@/test-support/fakes/fakePrismaClient'
-import { withScratchTenantDatabase, type ScratchTenantDatabase } from '@/test-support/db/scratchDatabase'
+import { withScratchTenantSchema, type ScratchTenantSchema } from '@/test-support/db/scratchSchema'
 
 // The fake's $transaction signature and the real client's overloaded one aren't
 // structurally compatible enough for TypeScript to unify FakePrismaClient|PrismaClient
@@ -187,10 +187,10 @@ async function runScenario(prisma: TestPrismaLike) {
 }
 
 describe('fakePrismaClient vs. the real generated Prisma Client (contract)', () => {
-  let scratch: ScratchTenantDatabase
+  let scratch: ScratchTenantSchema
 
   beforeAll(async () => {
-    scratch = await withScratchTenantDatabase()
+    scratch = await withScratchTenantSchema()
   }, 30000)
 
   afterAll(async () => {
