@@ -38,6 +38,44 @@ export function generateScratchSchemaName(): string {
   return `${SCRATCH_PREFIX}${randomBytes(6).toString('hex')}`
 }
 
+/**
+ * Whole scratch *databases*, for the few tests that need isolation a schema cannot
+ * give — currently only the whole-system backup, which discovers tenants by scanning
+ * the database for `vinyl_user_*` schemas and would otherwise find (and refuse to
+ * back up alongside) the developer's real ones.
+ *
+ * This is a test-only capability. Production provisions schemas precisely so it needs
+ * no CREATEDB privilege; a development machine has one anyway.
+ */
+export function scratchDatabaseUrl(name: string): string {
+  assertScratchName(name)
+  const url = new URL(databaseUrl())
+  url.pathname = `/${name}`
+  return url.toString()
+}
+
+export async function createScratchDatabase(name: string): Promise<void> {
+  assertScratchName(name)
+  const client = new Client({ connectionString: databaseUrl() })
+  await client.connect()
+  try {
+    await client.query(`CREATE DATABASE "${name}"`)
+  } finally {
+    await client.end()
+  }
+}
+
+export async function dropScratchDatabase(name: string): Promise<void> {
+  assertScratchName(name)
+  const client = new Client({ connectionString: databaseUrl() })
+  await client.connect()
+  try {
+    await client.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`)
+  } finally {
+    await client.end()
+  }
+}
+
 /** Whether a schema with this exact name exists. Read-only, so no naming restriction — used to check both scratch and real vinyl_user_* names. */
 export async function schemaExists(name: string): Promise<boolean> {
   const client = new Client({ connectionString: databaseUrl() })

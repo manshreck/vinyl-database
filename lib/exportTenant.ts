@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { Client, types as pgTypes } from 'pg'
-import { schemaConnectionConfig } from '@/lib/dbUrls'
+import { assertSafeSchemaName, schemaConnectionConfig } from '@/lib/dbUrls'
 
 /**
  * Types whose Postgres text form carries more than the JS value would.
@@ -19,7 +19,7 @@ const PRESERVE_AS_TEXT_OIDS = new Set([
   1700, // numeric
 ])
 
-const preserveExactText = {
+export const preserveExactText = {
   getTypeParser: ((oid: number, format?: unknown) =>
     PRESERVE_AS_TEXT_OIDS.has(oid)
       ? (value: string) => value
@@ -62,7 +62,7 @@ const SERIAL_KEYS: Array<[table: string, column: string]> = [
   ['wishlist_items', 'wishlist_item_id'],
 ]
 
-function quoteIdent(name: string): string {
+export function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`
 }
 
@@ -71,10 +71,21 @@ function quoteIdent(name: string): string {
  * escape: Postgres runs with standard_conforming_strings on, so a backslash inside a
  * literal is an ordinary character rather than an escape introducer.
  */
-function sqlLiteral(value: unknown): string {
+export function sqlLiteral(value: unknown): string {
   if (value === null || value === undefined) return 'NULL'
   if (typeof value === 'number') return String(value)
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
+  // A Date here means the reading client was built without preserveExactText. Left
+  // alone, String(date) yields "Tue Aug 05 2026 12:00:00 GMT-0400 (…)", which is both
+  // lossy (milliseconds) and not valid SQL — Postgres rejects it with "time zone
+  // gmt-0400 not recognized", but only when someone finally restores the file. Fail
+  // now, at the point the mistake is made.
+  if (value instanceof Date) {
+    throw new Error(
+      'sqlLiteral received a Date: build the reading client with `preserveExactText` ' +
+        'so timestamps arrive as Postgres text and round-trip exactly.'
+    )
+  }
   // Timestamps, dates and numerics arrive as Postgres' own text (see
   // PRESERVE_AS_TEXT_OIDS); quoting them is correct, and Postgres casts on insert.
   return `'${String(value).replace(/'/g, "''")}'`
@@ -123,64 +134,92 @@ function assertEveryTableIsExported(actualTables: string[]): void {
   }
 }
 
+/** A client that reads Postgres' own text for timestamps, dates and numerics. */
+export function exportReadClient(schema: string): Client {
+  return new Client({ ...schemaConnectionConfig(schema), types: preserveExactText })
+}
+
+/**
+ * Emits the DDL and data for one tenant, over a client whose search_path is already
+ * `schema`.
+ *
+ * `targetSchema` is what the *emitted file* rebuilds into, which is not the schema
+ * being read:
+ *
+ * - `null` — the file is unqualified and restores into whatever `public` is at
+ *   restore time. This is the per-user export: their records should simply be the
+ *   contents of their database, not sit in a schema named after an internal id.
+ * - a name — the file recreates and selects that schema first. This is the admin
+ *   whole-system backup, which must rebuild the live layout tenant for tenant.
+ */
+export async function emitTenantSql(
+  client: Client,
+  schema: string,
+  targetSchema: string | null
+): Promise<string[]> {
+  // Scoped to this tenant's schema: with one database, 'public' would inspect the
+  // wrong (empty) namespace, and looking across all schemas would trip the
+  // unknown-table guard on every *other* tenant.
+  const { rows: tableRows } = await client.query<{ table_name: string }>(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+    [schema]
+  )
+  assertEveryTableIsExported(tableRows.map((r) => r.table_name))
+
+  const out: string[] = []
+  if (targetSchema) {
+    assertSafeSchemaName(targetSchema)
+    out.push(
+      `CREATE SCHEMA ${quoteIdent(targetSchema)};`,
+      `SET search_path TO ${quoteIdent(targetSchema)};`,
+      ''
+    )
+  }
+  out.push(TENANT_SCHEMA_SQL.trim(), '')
+
+  for (const table of TABLES_IN_RESTORE_ORDER) {
+    const result = await client.query(`SELECT * FROM ${quoteIdent(table)}`)
+    const count = result.rows.length
+    out.push(`-- ${table}: ${count} row${count === 1 ? '' : 's'}`)
+
+    if (count > 0) {
+      const columns = result.fields.map((f) => quoteIdent(f.name)).join(', ')
+      for (const row of result.rows) {
+        const values = result.fields.map((f) => sqlLiteral(row[f.name])).join(', ')
+        out.push(`INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${values});`)
+      }
+    }
+    out.push('')
+  }
+
+  out.push('-- Advance sequences past the restored rows, so the next insert does not collide.')
+  for (const [table, column] of SERIAL_KEYS) {
+    const col = quoteIdent(column)
+    out.push(
+      `SELECT setval(pg_get_serial_sequence('${table}', '${column}'), ` +
+        `COALESCE(MAX(${col}), 1), MAX(${col}) IS NOT NULL) FROM ${quoteIdent(table)};`
+    )
+  }
+  out.push('')
+  return out
+}
+
 /**
  * Builds a self-contained .sql file restoring this tenant's schema and every row.
  *
- * Reads from `schema`, but the file it emits targets `public` and is unqualified
- * throughout — the reader is a user restoring into a database of their own, where
- * their records should simply be the contents, not sit in a schema named after an
- * internal id. The admin whole-system backup is the one that preserves schema names;
- * see lib/exportSystem.ts.
+ * Reads from `schema`, emits for `public` — see emitTenantSql. The admin
+ * whole-system backup is the one that preserves schema names; see lib/exportSystem.ts.
  */
 export async function buildTenantSqlExport(
   schema: string,
   generatedAt: Date = new Date()
 ): Promise<string> {
-  const client = new Client({
-    ...schemaConnectionConfig(schema),
-    types: preserveExactText,
-  })
+  const client = exportReadClient(schema)
   await client.connect()
 
   try {
-    // Scoped to this tenant's schema: with one database, 'public' would inspect the
-    // wrong (empty) namespace, and looking across all schemas would trip the
-    // unknown-table guard on every *other* tenant.
-    const { rows: tableRows } = await client.query<{ table_name: string }>(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
-      [schema]
-    )
-    assertEveryTableIsExported(tableRows.map((r) => r.table_name))
-
-    const out: string[] = [header(generatedAt), TENANT_SCHEMA_SQL.trim(), '']
-
-    for (const table of TABLES_IN_RESTORE_ORDER) {
-      const result = await client.query(`SELECT * FROM ${quoteIdent(table)}`)
-      const count = result.rows.length
-      out.push(`-- ${table}: ${count} row${count === 1 ? '' : 's'}`)
-
-      if (count > 0) {
-        const columns = result.fields.map((f) => quoteIdent(f.name)).join(', ')
-        for (const row of result.rows) {
-          const values = result.fields.map((f) => sqlLiteral(row[f.name])).join(', ')
-          out.push(`INSERT INTO ${quoteIdent(table)} (${columns}) VALUES (${values});`)
-        }
-      }
-      out.push('')
-    }
-
-    out.push('-- Advance sequences past the restored rows, so the next insert does not collide.')
-    for (const [table, column] of SERIAL_KEYS) {
-      const col = quoteIdent(column)
-      out.push(
-        `SELECT setval(pg_get_serial_sequence('${table}', '${column}'), ` +
-          `COALESCE(MAX(${col}), 1), MAX(${col}) IS NOT NULL) FROM ${quoteIdent(table)};`
-      )
-    }
-    out.push('')
-
-    return out.join('\n')
+    return [header(generatedAt), ...(await emitTenantSql(client, schema, null))].join('\n')
   } finally {
     await client.end()
   }

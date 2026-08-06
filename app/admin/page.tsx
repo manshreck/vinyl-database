@@ -82,6 +82,35 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
+
+        <section className="mt-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-4">
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            Whole-system backup
+          </h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            One SQL file rebuilding everything — every account and all{' '}
+            {users.length === 1 ? 'their' : 'their'} collections — into an empty database.
+            Every account also has its own export on their account page; this is the one that
+            covers all of them at once, and the answer to every tenant sharing a database.
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Login sessions are deliberately excluded, so everyone signs in again after a
+            restore. Accounts, password hashes and Discogs tokens are included.
+          </p>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+            <strong>Store this file like a password.</strong> It contains every account&rsquo;s
+            password hash and Discogs API token.
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-zinc-100 dark:bg-zinc-950 px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+            <code>{'createdb vinyl_restored\npsql -d vinyl_restored -f vinyl-full-backup-….sql'}</code>
+          </pre>
+          <a
+            href="/admin/backup"
+            className="inline-block rounded-full bg-zinc-900 px-6 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+          >
+            Download full backup (.sql)
+          </a>
+        </section>
       </div>
     </div>
   )
