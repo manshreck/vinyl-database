@@ -23,6 +23,22 @@ export class DiscogsApiError extends Error {
   }
 }
 
+/**
+ * How many times a request is retried after a 5xx, and how long it waits between.
+ *
+ * Discogs returns intermittent 5xx from its gateway — observed as an HTML error page
+ * rather than the API's own JSON, so the failure is upstream of the API and unrelated
+ * to what was asked for. The same query fails and then succeeds seconds later, which
+ * makes one retry the difference between a broken page and a slightly slow one.
+ *
+ * Deliberately short and few: this runs inside a request the user is waiting on, so
+ * the ceiling on added latency (~1.2s) matters more than exhausting every chance.
+ */
+const TRANSIENT_RETRIES = 2
+const RETRY_BACKOFF_MS = [300, 900]
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 async function discogsFetch<T>(
   path: string,
   token: string | null,
@@ -36,12 +52,18 @@ async function discogsFetch<T>(
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
   url.searchParams.set('token', token)
 
-  const response = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT },
-  })
+  let lastStatus = 0
 
-  if (!response.ok) {
+  for (let attempt = 0; attempt <= TRANSIENT_RETRIES; attempt++) {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+    })
+
+    if (response.ok) return response.json() as Promise<T>
+
     if (response.status === 429) {
+      // Not retried here: the remedy is waiting out the window, which is far longer
+      // than a user will hold a page open for, and retrying spends the budget further.
       throw new DiscogsApiError(
         'Discogs search is rate-limited right now. Please try again in a minute.',
         429,
@@ -58,10 +80,23 @@ async function discogsFetch<T>(
         true
       )
     }
-    throw new DiscogsApiError(`Discogs API request failed (${response.status}).`, response.status)
+
+    lastStatus = response.status
+
+    // 5xx is Discogs' problem and usually momentary, so try again before giving up.
+    // Anything else is a definite answer about this request — retrying just repeats it.
+    if (response.status < 500 || attempt === TRANSIENT_RETRIES) break
+    await sleep(RETRY_BACKOFF_MS[attempt])
   }
 
-  return response.json() as Promise<T>
+  if (lastStatus >= 500) {
+    throw new DiscogsApiError(
+      `Discogs is having trouble right now (${lastStatus}) and did not respond after ` +
+        `${TRANSIENT_RETRIES + 1} attempts. This is on their side, not yours — please try again shortly.`,
+      lastStatus
+    )
+  }
+  throw new DiscogsApiError(`Discogs API request failed (${lastStatus}).`, lastStatus)
 }
 
 /** What the account page can truthfully say about a stored token. */

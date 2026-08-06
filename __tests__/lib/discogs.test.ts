@@ -132,9 +132,11 @@ describe('searchDiscogsReleases', () => {
   })
 
   it('throws a generic DiscogsApiError on other non-2xx responses', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({}, false, 500))
+    // A definite 4xx, not a 5xx: 5xx is retried now, and its exhausted case is
+    // covered in 'transient 5xx handling' below.
+    mockFetch.mockResolvedValueOnce(jsonResponse({}, false, 418))
     await expect(searchDiscogsReleases('x', TOKEN)).rejects.toMatchObject({
-      status: 500,
+      status: 418,
       rateLimited: false,
     })
   })
@@ -234,5 +236,85 @@ describe('getDiscogsRelease', () => {
   it('throws a DiscogsApiError when no token is passed', async () => {
     await expect(getDiscogsRelease(1, null)).rejects.toThrow(DiscogsApiError)
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Discogs returns intermittent 5xx from its gateway — the same query fails and then
+ * succeeds seconds later. Retrying is what keeps that from reaching the user, so the
+ * behaviour is pinned here: retry what is momentary, never retry a definite answer.
+ */
+describe('transient 5xx handling', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  /** Runs `fn` while draining the retry backoff timers it schedules. */
+  async function withTimersDrained<T>(fn: () => Promise<T>): Promise<T> {
+    const promise = fn()
+    // Let each awaited fetch settle, then fire its backoff timer.
+    for (let i = 0; i < 6; i++) {
+      await Promise.resolve()
+      jest.runOnlyPendingTimers()
+    }
+    return promise
+  }
+
+  it('recovers when a 5xx is followed by success', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({}, false, 502))
+      .mockResolvedValueOnce(jsonResponse({ results: [] }))
+
+    const results = await withTimersDrained(() => searchDiscogsReleases('abort', TOKEN))
+
+    expect(results).toEqual([])
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after three attempts, blaming Discogs rather than the user', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, false, 500))
+
+    await expect(
+      withTimersDrained(() => searchDiscogsReleases('abort', TOKEN))
+    ).rejects.toThrow(/having trouble right now \(500\)/)
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('names Discogs as the cause, so the message does not read as the user\'s fault', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, false, 503))
+
+    await expect(
+      withTimersDrained(() => searchDiscogsReleases('abort', TOKEN))
+    ).rejects.toThrow(/their side, not yours/)
+  })
+
+  it('does not retry a rate limit — waiting it out is the remedy, and retrying spends the budget', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, false, 429))
+
+    await expect(
+      withTimersDrained(() => searchDiscogsReleases('abort', TOKEN))
+    ).rejects.toThrow(/rate-limited/)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a rejected token — the answer will not change', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, false, 401))
+
+    await expect(
+      withTimersDrained(() => searchDiscogsReleases('abort', TOKEN))
+    ).rejects.toThrow(/rejected your token/)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a 404 — it is a definite answer about this request', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, false, 404))
+
+    await expect(
+      withTimersDrained(() => getDiscogsRelease(999999999, TOKEN))
+    ).rejects.toThrow(DiscogsApiError)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
