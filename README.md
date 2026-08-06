@@ -1,6 +1,6 @@
 # Vinyl Database
 
-A multi-user web application for managing a personal vinyl record collection, built with Next.js, Prisma, and PostgreSQL. Each account gets its own dedicated Postgres database, created automatically at registration.
+A multi-user web application for managing a personal vinyl record collection, built with Next.js, Prisma, and PostgreSQL. Each account gets its own Postgres schema inside one database, created automatically at registration.
 
 ## Prerequisites
 
@@ -92,17 +92,18 @@ If `psql` or `createdb` aren't recognized afterward, add PostgreSQL's `bin` dire
 
 ### Setting Up the Databases
 
-This app uses two kinds of databases, a single control database holding user accounts, and one "tenant" database per user for that user's record collection. Only the control database needs to be initialized manually:
+Everything lives in **one** database, divided into schemas. Only the database itself needs creating by hand:
 
-- **A control-plane database** (`vinyl_control`) is shared and holds accounts and sessions. Create it once:
+```bash
+createdb vinyl
+```
 
-  ```bash
-  createdb vinyl_control
-  ```
+Inside it:
 
-  Its tables (`users`, `sessions`) are created automatically the first time the app connects; no schema file needs to load and no field seeds are needed.
+- **The `control` schema** holds accounts and sessions, shared by everyone. Its tables are created automatically the first time the app connects — no schema file to load, no seeds to run.
+- **One `vinyl_user_<random>` schema per account** holds that account's collection, created automatically when someone registers via `/register`. You don't create these by hand.
 
-- **A tenant database per account** (`vinyl_user_<random>`) is created automatically when someone registers via `/register`. You don't create these by hand.
+This is why the app runs on managed and free-tier Postgres: provisioning an account needs `CREATE` on this one database, not the `CREATEDB` privilege that creating a database per account would require — and which hosted tiers almost never grant.
 
 
 ### Obtain a Discogs API Token
@@ -131,12 +132,11 @@ cp .env.example .env
 The template, for reference:
 
 ```ini
-# Template used to derive both the Postgres maintenance connection (for CREATE DATABASE)
-# and every tenant database's connection — only the database name in the path differs.
-DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_database"
-
-# The shared control-plane database (accounts and sessions).
-CONTROL_DATABASE_URL="postgresql://your_username@localhost:5432/vinyl_control"
+# The one database everything lives in. Each account gets a schema inside it
+# (vinyl_user_<hex>), and the control plane — accounts and sessions — is the
+# "control" schema. Only CREATE on this database is needed, which is what makes
+# managed and free-tier Postgres viable.
+DATABASE_URL="postgresql://your_username@localhost:5432/vinyl"
 
 # Powers the "Search Discogs" feature (searching Discogs' catalog and prefilling
 # a new pressing/wishlist item from a result). Optional — the rest of the app works

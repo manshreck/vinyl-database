@@ -45,27 +45,32 @@ for "real one is slow/nondeterministic/external, many tests need one."
 
 Per the test-doubles skill's preference ladder, a proxy beats a fake whenever a
 disposable instance of the real thing is affordable to construct — and a scratch
-PostgreSQL database is exactly that: Postgres is already a project prerequisite,
-creating and dropping a database takes milliseconds, and there's no shared state to
+PostgreSQL schema is exactly that: Postgres is already a project prerequisite,
+creating and dropping a schema takes milliseconds, and there's no shared state to
 make it nondeterministic. A fake would be strictly worse for the seam/system layer,
 because the exact things those layers need to verify — that `prisma/schema.prisma`
 and `prisma/tenant-schema.sql` haven't drifted, that `provisionTenant.ts`'s raw DDL
-and dynamic `CREATE DATABASE "${name}"` actually work, that the database-name regex
+and dynamic `CREATE SCHEMA "${name}"` actually work, that the schema-name regex
 actually rejects bad input — are real-Postgres behaviors a fake would have to
 reimplement from assumptions rather than verify.
 
-This app also makes tenant-database proxies unusually cheap and safe: the production
-architecture already treats "one disposable database per user" as normal (see
-`DEVELOPER_GUIDE.md` §10), so creating and destroying a scratch tenant database for a
-test is the same operation the app performs on every real registration. The control
-database is a shallower conceptual fit (there's exactly one of it in production, not
-one-per-something), but mechanically it's proxied the same way: apply `controlDb.ts`'s
-own bootstrap SQL to a throwaway database.
+This app also makes tenant proxies unusually cheap and safe: the production
+architecture already treats "one disposable schema per user" as normal (see
+`DEVELOPER_GUIDE.md` §10), so creating and destroying a scratch tenant schema for a
+test is the same operation the app performs on every real registration — which also
+means the tests exercise the mechanism production actually uses, rather than a
+stand-in for it. The control
+plane is a shallower conceptual fit (there's exactly one of it in production, not
+one-per-something), but mechanically it's proxied the same way: point `CONTROL_SCHEMA`
+at a throwaway schema and let `controlDb.ts`'s own bootstrap SQL build it.
 
 So:
 
-- **Seam and system integration tests use a real, per-test proxy database**
-  (`test-support/db/scratchDatabase.ts`) — not a fake.
+- **Seam and system integration tests use a real, per-test proxy schema**
+  (`test-support/db/scratchSchema.ts`) — not a fake. That module also provides scratch
+  *databases*, used only where a test needs isolation a schema can't give: the
+  whole-system backup discovers tenants by scanning for `vinyl_user_*` schemas, so it
+  must not share a database with the developer's real ones.
 - **A fake tenant-Prisma client exists for the unit layer** —
   `test-support/fakes/fakePrismaClient.ts` — for a different purpose: one
   owner-maintained, in-memory implementation of the handful of Prisma calls the app
@@ -111,7 +116,7 @@ value behavior, both of which span multiple interactions on the same rendered fo
 Exactly two real components, one real boundary between them, doubled everywhere else.
 Closes the gap unit/component tests deliberately leave: a doubled seam is never
 exercised for real anywhere else. Live in `__tests__/seam/`, run against a real local
-Postgres via a per-test scratch database.
+Postgres via a per-test scratch schema.
 
 | Test | Boundary | Covers |
 |---|---|---|
@@ -185,7 +190,7 @@ test-support/                       # shared test infrastructure, not itself a t
       release-2825456.json
       master-5460.json
   db/
-    scratchDatabase.ts
+    scratchSchema.ts
     controlDbGlobals.ts
 
 __tests__/

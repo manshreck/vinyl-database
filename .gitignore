@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local migration artifacts — contain real data, never commit
+/migration-snapshots-*/

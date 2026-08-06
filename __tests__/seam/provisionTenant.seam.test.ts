@@ -35,13 +35,15 @@ async function queryTenant(name: string, sql: string) {
 }
 
 describe('provisionTenant.ts ↔ real Postgres (seam)', () => {
-  it('creates a database with the expected tables and seeded formats/genres', async () => {
+  it('creates a schema with the expected tables and seeded formats/genres', async () => {
     const name = generateSchemaName()
     await createTenantSchema(name)
     try {
+      // Scoped to the tenant's own schema: 'public' is deliberately empty now, and
+      // an unscoped query would see every other tenant's tables too.
       const tables = await queryTenant(
         name,
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = '${name}'`
       )
       const tableNames = tables.rows.map((r) => r.table_name)
       expect(tableNames).toEqual(

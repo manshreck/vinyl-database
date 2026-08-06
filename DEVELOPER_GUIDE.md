@@ -60,7 +60,7 @@ Browser (client components)
 
 **Search exception:** The advanced search page (`/search`) uses a raw SQL query via `prisma.$queryRaw` because it needs PostgreSQL's native `~*` regex operator, which is not expressible through Prisma's query builder.
 
-**Multi-tenancy:** VinylDB is multi-user, and isolation is at the database level — every account has its own dedicated Postgres database (`vinyl_user_<random>`), created automatically at registration. A small, separate **control-plane database** (`vinyl_control`) holds accounts and sessions and is shared by everyone. See [§10 Authentication & Multi-Tenancy](#10-authentication--multi-tenancy) for the full model.
+**Multi-tenancy:** VinylDB is multi-user, and isolation is at the schema level — every account has its own Postgres schema (`vinyl_user_<random>`) inside one shared database, created automatically at registration. The **control plane** (accounts and sessions) is another schema, `control`. Schemas rather than databases because provisioning then needs only `CREATE` on the database, not the `CREATEDB` privilege that managed and free-tier Postgres almost never grants. See [§10 Authentication & Multi-Tenancy](#10-authentication--multi-tenancy) for the full model, including how a connection is bound to one tenant.
 
 ---
 
@@ -819,9 +819,9 @@ mockTransaction.mockImplementation(async (fn) => fn(mockTx))
 
 **Component tests** render with `@testing-library/react` and interact with `userEvent.setup()` (v14 API — do not use the legacy `userEvent.click()` directly).
 
-**Seam/system tests against real Postgres** (`__tests__/{seam,system}/*.test.ts`, run via `npm run test:integration`) use real, disposable scratch databases (`test-support/db/scratchDatabase.ts`) rather than fakes — see `TESTING.md` §1.2 for why. Two things worth knowing before writing another one:
+**Seam/system tests against real Postgres** (`__tests__/{seam,system}/*.test.ts`, run via `npm run test:integration`) use real, disposable scratch schemas (`test-support/db/scratchSchema.ts`) rather than fakes — see `TESTING.md` §1.2 for why. Two things worth knowing before writing another one:
 
-- `controlDb.ts` reads `CONTROL_DATABASE_URL` and memoizes its `Pool` on `globalThis` at module-load time (surviving Next.js dev-mode hot reload in production). A test that needs it pointed at a scratch database instead must `jest.resetModules()`, set the env var, and re-`import()` it — and must close/clear that same `globalThis` cache afterward, or the next load double-closes an already-ended pool. Both steps are in `test-support/db/controlDbGlobals.ts`; reuse it rather than re-deriving it (a real bug in an earlier version of this, since fixed, is why it's factored out).
+- `controlDb.ts` resolves its control schema and memoizes its `Pool` on `globalThis` at module-load time (surviving Next.js dev-mode hot reload in production). A test that needs it pointed at a scratch schema instead must `jest.resetModules()`, set `CONTROL_SCHEMA`, and re-`import()` it — and must close/clear that same `globalThis` cache afterward, or the next load double-closes an already-ended pool. Both steps are in `test-support/db/controlDbGlobals.ts`; reuse it rather than re-deriving it (a real bug in an earlier version of this, since fixed, is why it's factored out).
 - **`jest.spyOn()` cannot stub a named export of these modules** — this codebase's SWC compilation makes them non-configurable, so spying throws `Cannot redefine property`. To force a hard-to-trigger real failure (e.g. `registration.system.test.ts`'s "provisioning fails" case), mutate the environment instead (e.g. point `DATABASE_URL` at an unreachable address for one call) rather than trying to stub the function.
 
 **End-to-end tests** (`e2e/*.spec.ts`, run via `npm run test:e2e`) use [Playwright](https://playwright.dev) against a real browser, a real local Postgres, and (for the Discogs journey) the real Discogs API — see `TESTING.md` §2.5 and the `swe-e2e-testing` skill for what belongs at this layer. Conventions:
@@ -869,7 +869,7 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | Yes | Connection **template** (host/port/credentials) — its database name is swapped out at runtime to reach the Postgres maintenance DB or any tenant's database. See `lib/dbUrls.ts`. |
-| `CONTROL_DATABASE_URL` | Yes | Full connection string to the shared control-plane database (`vinyl_control`), which holds `users` and `sessions`. |
+| `CONTROL_SCHEMA` | No | Overrides the control-plane schema name (default `control`). Exists so seam/system tests can point a reloaded `controlDb` at a scratch schema; not something a deployment sets. |
 | `DISCOGS_TOKEN` | No | Personal access token for the Discogs API, used by `lib/discogs.ts` for the "Search Discogs" feature (`/discogs`). Generate one at [discogs.com/settings/developers](https://www.discogs.com/settings/developers) — it's a single server-side credential shared by every user of this app, not a per-user login. Without it, `/discogs` shows a "not configured" error but the rest of the app is unaffected. |
 | `ADMIN_PASSWORD` | No | Password for the `/admin` dashboard (username is always `admin`, hardcoded — see `lib/adminCredentials.ts`). Defaults to blank when unset, which is fine for local development; `/admin/page.tsx` shows a warning banner for as long as it stays blank. Set a real value before deploying anywhere beyond localhost. |
 
@@ -877,12 +877,25 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 
 ## 10. Authentication & Multi-Tenancy
 
-**Why:** VinylDB started single-tenant (one shared database, no accounts). It's now multi-user, with each account's collection fully isolated in its own Postgres database rather than partitioned by a `user_id` column — simpler to reason about at this app's scale, and it means a schema bug or bad query in one tenant's data can't leak into another's.
+**Why:** VinylDB started single-tenant (one shared database, no accounts). It's now multi-user, with each account's collection isolated in its own Postgres **schema** rather than partitioned by a `user_id` column — simpler to reason about at this app's scale, and it keeps per-account provisioning, export and deletion as single operations on a namespace.
 
-**Two databases, two access patterns:**
+It was one database per account until the move to schemas. The reason for the change was hosting, not design: `CREATE DATABASE` requires a `CREATEDB` role that managed and free-tier Postgres essentially never grants, while `CREATE SCHEMA` needs only `CREATE` on the database everyone already has. What that costs is shared fate — one database now means a bad migration or a lost server affects every account at once — which is what the whole-system backup below exists to answer.
 
-- **Tenant databases** (`vinyl_user_<12 hex chars>`, one per account) hold the actual collection data (`prisma/schema.prisma` — artists, releases, pressings, etc.), accessed via Prisma exactly as before, just pointed at a per-user connection string (`lib/prisma.ts`'s `getTenantPrisma(databaseName)`).
-- **The control-plane database** (`vinyl_control`, one, shared) holds only `users` and `sessions`. It's accessed via a hand-written `pg.Pool` in `lib/controlDb.ts`, not Prisma — two tables didn't justify a second Prisma schema/client. Its tables are created idempotently (`CREATE TABLE IF NOT EXISTS`) the first time the pool is used, so there's no schema file to run by hand.
+**Two namespaces, two access patterns:**
+
+- **Tenant schemas** (`vinyl_user_<12 hex chars>`, one per account) hold the actual collection data (`prisma/schema.prisma` — artists, releases, pressings, etc.), accessed via Prisma exactly as before, through a client bound to that schema (`lib/prisma.ts`'s `getTenantPrisma(schema)`).
+- **The control plane** (the `control` schema, one, shared) holds only `users` and `sessions`. It's accessed via a hand-written `pg.Pool` in `lib/controlDb.ts`, not Prisma — two tables didn't justify a second Prisma schema/client. Its schema and tables are created idempotently (`CREATE SCHEMA` / `CREATE TABLE IF NOT EXISTS`) the first time the pool is used, so there's nothing to run by hand. The pool's `search_path` names the schema, so the queries themselves are unqualified.
+
+- **Binding a connection to one tenant** takes *two* mechanisms, and both are required (`lib/prisma.ts`):
+
+  | Mechanism | Covers |
+  |---|---|
+  | the adapter's `{ schema }` option | Prisma's **generated** SQL |
+  | `search_path` on the connection | `$queryRaw` (which `/search` is built on) and any plain `pg` query |
+
+  With only the first, unqualified raw SQL resolves against `public` — it returns rows rather than erroring, so the failure mode is silently reading another tenant's data. Neither alone is sufficient.
+
+- **Schema names are interpolated, never parameterized**, because neither `search_path` nor `CREATE SCHEMA` accepts a bind parameter. `lib/dbUrls.ts` is therefore the injection boundary: `assertSafeSchemaName` runs before any name reaches a connection string or DDL, and `provisionTenant.ts` applies a stricter tenant-only pattern on top so a stray name can never reach `DROP SCHEMA ... CASCADE`.
 
 **Session model:** Cookie-based, not JWT. `lib/session.ts` sets an httpOnly `session` cookie containing a random token; the control DB stores only its SHA-256 hash, mapped to a `user_id` and (via a join) the account's `databaseName`. `getSession()` reads and validates the cookie; `requireSession()` does the same but calls `redirect('/login')` if there's no valid session — used by pages and Server Actions. API routes use `getSession()` directly and return `401` instead, since a `redirect()` response is meaningless to a `fetch()` caller.
 
@@ -893,7 +906,7 @@ Route protection (this Next.js version renamed Middleware to Proxy — see [§10
 **Registration (`app/actions/registerUser.ts`)** is the one place that spans both databases:
 
 1. Validate input, hash the password (`lib/password.ts` — `crypto.scryptSync`, no external dependency), insert a `users` row in the control DB with a freshly generated `databaseName`.
-2. Provision the tenant database (`lib/provisionTenant.ts`): `CREATE DATABASE`, apply `prisma/tenant-schema.sql` (pre-generated DDL, **not** run through the Prisma CLI at request time — see below), and insert the reference data from `prisma/referenceData.ts` (the same formats/genres `prisma/seed.ts` uses).
+2. Provision the tenant schema (`lib/provisionTenant.ts`): `CREATE SCHEMA`, apply `prisma/tenant-schema.sql` (pre-generated DDL, **not** run through the Prisma CLI at request time — see below) over a connection whose `search_path` is that schema, and insert the reference data from `prisma/referenceData.ts` (the same formats/genres `prisma/seed.ts` uses). One ordinary connection does all of it — `CREATE SCHEMA`, unlike `CREATE DATABASE`, needs no separate privileged connection to a maintenance database.
 3. On any provisioning failure, roll back the `users` row and drop the partially-created database.
 4. Create a session and redirect to `/pressings`.
 
@@ -943,3 +956,35 @@ submission at all.
 - `proxy.ts`'s user-session check excludes `/admin*` entirely (its matcher is `(?!login|register|admin|...)`); `/admin/page.tsx` gates itself with `requireAdminSession()` instead.
 - The dashboard (`app/admin/page.tsx`) lists every row from `controlDb.listUsers()` (email, `createdAt`, `lastLoginAt`) alongside a live pressing count per account via `lib/adminStats.ts`'s `countPressings(databaseName)` — a short-lived `pg.Client` connected directly to that tenant's database, deliberately bypassing the `getTenantPrisma` cache so that listing every account doesn't pin open a Prisma connection pool per tenant just for an admin page view.
 - `lastLoginAt` is updated in `createSessionCookie()` (`lib/session.ts`), so both registration and login count as a "login" for this purpose.
+
+### 10.1 Backups and data ownership
+
+Three separate things, easy to conflate:
+
+| | Who | Contains | Restores as |
+|---|---|---|---|
+| `/account/export` | any user | one account's collection | plain `public` — a database of their own |
+| `/account/export/csv` | any user | one account's pressings, flat | a spreadsheet, not a backup |
+| `/admin/backup` | admin only | **everything** — control plane + every tenant schema | the live layout, schema names preserved |
+
+The two per-account exports are the data-ownership story: a user's records leave in
+plain text that restores without this application at all.
+
+The **whole-system backup** (`lib/exportSystem.ts`) is the operational one, and exists
+because every tenant now shares a database. Points worth knowing:
+
+- It emits schema names *preserved*, the opposite of the per-account export's
+  `public`-targeting, because its reader is rebuilding this system rather than
+  restoring one collection. Both come from one emitter (`emitTenantSql`) with a
+  target-schema parameter, so they can't drift apart.
+- **Accounts are included; sessions are not.** Password hashes and Discogs tokens have
+  to survive or a restore locks everyone out. Sessions are the opposite: restoring them
+  would revive every token that was live when the backup was taken, so a leaked file
+  plus a restore would hand over logged-in access. The tables are created empty.
+- **The file is a secret** — it holds every password hash and Discogs token. This is
+  stated in the file's own header and beside the download button.
+- It **refuses to run** if the control plane and the database disagree about which
+  tenants exist, in either direction. A backup that silently omits a tenant is the
+  failure worth refusing, because nobody checks a backup until the original is gone.
+- It complements rather than replaces provider-side backups and `pg_dump`; what it adds
+  is a no-tooling option whose restore path is the same `psql -f` as everything else.
