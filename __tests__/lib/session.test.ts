@@ -11,6 +11,7 @@ import {
 const mockCreateSession = jest.fn()
 const mockFindSessionByTokenHash = jest.fn()
 const mockDeleteSessionByTokenHash = jest.fn()
+const mockTouchSession = jest.fn()
 const mockUpdateLastLogin = jest.fn()
 const mockRedirect = jest.fn()
 
@@ -20,16 +21,36 @@ const mockCookieStore = {
   delete: jest.fn(),
 }
 
+const mockHeaderStore = { get: jest.fn() }
+
 jest.mock('@/lib/controlDb', () => ({
   createSession: (...args: unknown[]) => mockCreateSession(...args),
   findSessionByTokenHash: (...args: unknown[]) => mockFindSessionByTokenHash(...args),
   deleteSessionByTokenHash: (...args: unknown[]) => mockDeleteSessionByTokenHash(...args),
+  touchSession: (...args: unknown[]) => mockTouchSession(...args),
   updateLastLogin: (...args: unknown[]) => mockUpdateLastLogin(...args),
 }))
 
 jest.mock('next/headers', () => ({
   cookies: jest.fn(() => Promise.resolve(mockCookieStore)),
+  headers: jest.fn(() => Promise.resolve(mockHeaderStore)),
 }))
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** A valid control-db session row, overridable per test. */
+function sessionRow(overrides: Record<string, unknown> = {}) {
+  return {
+    userId: 1,
+    email: 'a@b.com',
+    databaseName: 'vinyl_user_test',
+    discogsToken: 'user-discogs-token',
+    fullName: 'Miles Davis',
+    expiresAt: new Date(Date.now() + 30 * DAY_MS),
+    origin: 'web',
+    ...overrides,
+  }
+}
 
 jest.mock('next/navigation', () => ({
   redirect: (...args: unknown[]) => mockRedirect(...args),
@@ -38,6 +59,9 @@ jest.mock('next/navigation', () => ({
 describe('session helpers', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // clearAllMocks wipes recorded calls but not return values, so reset the default
+    // explicitly: otherwise a bearer token set by one test leaks into the next.
+    mockHeaderStore.get.mockReturnValue(null)
   })
 
   describe('getSession', () => {
@@ -55,21 +79,88 @@ describe('session helpers', () => {
 
     it('returns the session when the token is valid', async () => {
       mockCookieStore.get.mockReturnValue({ value: 'sometoken' })
-      mockFindSessionByTokenHash.mockResolvedValue({
-        userId: 1,
-        email: 'a@b.com',
-        databaseName: 'vinyl_user_test',
-        discogsToken: 'user-discogs-token',
-        fullName: 'Miles Davis',
-        expiresAt: new Date(),
-      })
+      mockFindSessionByTokenHash.mockResolvedValue(sessionRow())
       expect(await getSession()).toEqual({
         userId: 1,
         email: 'a@b.com',
         databaseName: 'vinyl_user_test',
         discogsToken: 'user-discogs-token',
         fullName: 'Miles Davis',
+        origin: 'web',
       })
+    })
+  })
+
+  describe('getSession via bearer token', () => {
+    it('accepts a token from the Authorization header with no cookie present', async () => {
+      mockCookieStore.get.mockReturnValue(undefined)
+      mockHeaderStore.get.mockReturnValue('Bearer mobiletoken')
+      mockFindSessionByTokenHash.mockResolvedValue(sessionRow({ origin: 'mobile' }))
+
+      const session = await getSession()
+      expect(session?.origin).toBe('mobile')
+    })
+
+    it('prefers the bearer token over a cookie when both are present', async () => {
+      mockCookieStore.get.mockReturnValue({ value: 'cookietoken' })
+      mockHeaderStore.get.mockReturnValue('Bearer bearertoken')
+      mockFindSessionByTokenHash.mockResolvedValue(sessionRow({ origin: 'mobile' }))
+
+      await getSession()
+
+      // The hash looked up must be the bearer token's, not the cookie's — an ambient
+      // cookie must never decide which account an explicit API call runs as.
+      const { createHash } = await import('crypto')
+      const bearerHash = createHash('sha256').update('bearertoken').digest('hex')
+      expect(mockFindSessionByTokenHash).toHaveBeenCalledWith(bearerHash)
+      expect(mockFindSessionByTokenHash).toHaveBeenCalledTimes(1)
+    })
+
+    it('ignores an Authorization header that is not a Bearer scheme', async () => {
+      mockCookieStore.get.mockReturnValue(undefined)
+      mockHeaderStore.get.mockReturnValue('Basic dXNlcjpwYXNz')
+
+      expect(await getSession()).toBeNull()
+      expect(mockFindSessionByTokenHash).not.toHaveBeenCalled()
+    })
+  })
+
+  // The lifetime policy is the security-relevant half of the mobile transport: an
+  // active device should never be signed out, an idle one should lapse on schedule.
+  describe('sliding renewal', () => {
+    it('extends a mobile session once it has burned through a day of its window', async () => {
+      mockCookieStore.get.mockReturnValue({ value: 'sometoken' })
+      mockFindSessionByTokenHash.mockResolvedValue(
+        sessionRow({ origin: 'mobile', expiresAt: new Date(Date.now() + 20 * DAY_MS) })
+      )
+
+      await getSession()
+
+      expect(mockTouchSession).toHaveBeenCalledWith(expect.any(String), expect.any(Date))
+      const newExpiry = mockTouchSession.mock.calls[0][1] as Date
+      expect(newExpiry.getTime() - Date.now()).toBeGreaterThan(29 * DAY_MS)
+    })
+
+    it('does not write on every request — a freshly issued mobile session is left alone', async () => {
+      mockCookieStore.get.mockReturnValue({ value: 'sometoken' })
+      mockFindSessionByTokenHash.mockResolvedValue(
+        sessionRow({ origin: 'mobile', expiresAt: new Date(Date.now() + 30 * DAY_MS - 1000) })
+      )
+
+      await getSession()
+
+      expect(mockTouchSession).not.toHaveBeenCalled()
+    })
+
+    it('never extends a web session, however old', async () => {
+      mockCookieStore.get.mockReturnValue({ value: 'sometoken' })
+      mockFindSessionByTokenHash.mockResolvedValue(
+        sessionRow({ origin: 'web', expiresAt: new Date(Date.now() + 1000) })
+      )
+
+      await getSession()
+
+      expect(mockTouchSession).not.toHaveBeenCalled()
     })
   })
 
@@ -102,7 +193,12 @@ describe('session helpers', () => {
   describe('createSessionCookie', () => {
     it('creates a control-db session row and sets an httpOnly cookie', async () => {
       await createSessionCookie(1)
-      expect(mockCreateSession).toHaveBeenCalledWith(1, expect.any(String), expect.any(Date))
+      expect(mockCreateSession).toHaveBeenCalledWith(
+        1,
+        expect.any(String),
+        expect.any(Date),
+        'web'
+      )
       expect(mockUpdateLastLogin).toHaveBeenCalledWith(1)
       expect(mockCookieStore.set).toHaveBeenCalledWith(
         'session',
@@ -154,14 +250,7 @@ describe('session helpers', () => {
       // token the same way createSessionCookie did when it stored it.
       mockFindSessionByTokenHash.mockImplementation((hash: string) => {
         if (hash !== storedHash) return null
-        return {
-          userId: 1,
-          email: 'a@b.com',
-          databaseName: 'vinyl_user_test',
-          discogsToken: null,
-          fullName: null,
-          expiresAt: new Date(),
-        }
+        return sessionRow({ discogsToken: null, fullName: null })
       })
 
       const session = await getSession()
@@ -171,6 +260,7 @@ describe('session helpers', () => {
         databaseName: 'vinyl_user_test',
         discogsToken: null,
         fullName: null,
+        origin: 'web',
       })
     })
   })

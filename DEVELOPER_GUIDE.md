@@ -560,7 +560,9 @@ Then `redirect(returnTo)`.
 
 ### 5.4 API Route Handlers
 
-Both handlers follow the same pattern. They are Next.js Route Handlers (not Server Actions) because they serve JSON to client-side `fetch()` calls.
+These are Next.js Route Handlers (not Server Actions) because they serve JSON. Each authenticates itself with `getSession()` and answers `401` — `proxy.ts` does not gate `/api` ([§10](#10-authentication--multi-tenancy)).
+
+The autocomplete handlers below serve the app's own client-side `fetch()` calls. `/api/v1/*` is the versioned surface intended for external clients (the mobile app); it is currently just authentication, with the rest arriving in Phase 3 of `MOBILE_APP_PLAN.md`.
 
 #### `GET /api/releases/search?q=`
 
@@ -569,6 +571,32 @@ Returns up to 10 releases whose `title` contains `q` (case-insensitive). Include
 #### `GET /api/artists/search?q=`
 
 Returns up to 10 artists whose `name` contains `q` (case-insensitive), ordered by `sortName`. Returns `[]` if `q.length < 2`.
+
+#### `POST /api/v1/auth/session` — log in
+
+Body `{ "email": string, "password": string }`. On success returns **201** with `{ token, expiresAt }`; the token is the bearer credential and this response is the **only** time it is readable, since the server keeps just its hash. Sessions created here get `origin: 'mobile'` and therefore the sliding lifetime.
+
+Returns `400` for a non-JSON body or a missing/non-string field, and `401` `{"error":"Incorrect email or password."}` for bad credentials — deliberately the same message whether the address is unknown or the password is wrong, so the endpoint can't be used to enumerate accounts.
+
+There is no registration endpoint, by design: creating an account provisions a tenant schema and happens once per user, so it stays on the web rather than being duplicated on a surface that can't be as carefully guarded.
+
+#### `DELETE /api/v1/auth/session` — log out
+
+Revokes the token given in `Authorization: Bearer <token>`. Returns **204**. Idempotent — an unknown or already-revoked token still returns 204, so a client retrying after a dropped connection still ends up signed out. Returns `401` only when the header is absent or malformed.
+
+#### `GET /api/v1/auth/session` — who am I?
+
+Returns `{ userId, email, fullName, origin }` for the presented token, or `401`. Lets a client check a stored token on launch without mutating anything.
+
+```bash
+# The whole flow, against a local dev server:
+TOKEN=$(curl -s -X POST localhost:3000/api/v1/auth/session \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"..."}' | jq -r .token)
+
+curl -s localhost:3000/api/v1/auth/session -H "Authorization: Bearer $TOKEN"
+curl -s -X DELETE localhost:3000/api/v1/auth/session -H "Authorization: Bearer $TOKEN" -o /dev/null -w '%{http_code}\n'
+```
 
 ---
 
@@ -897,9 +925,22 @@ It was one database per account until the move to schemas. The reason for the ch
 
 - **Schema names are interpolated, never parameterized**, because neither `search_path` nor `CREATE SCHEMA` accepts a bind parameter. `lib/dbUrls.ts` is therefore the injection boundary: `assertSafeSchemaName` runs before any name reaches a connection string or DDL, and `provisionTenant.ts` applies a stricter tenant-only pattern on top so a stray name can never reach `DROP SCHEMA ... CASCADE`.
 
-**Session model:** Cookie-based, not JWT. `lib/session.ts` sets an httpOnly `session` cookie containing a random token; the control DB stores only its SHA-256 hash, mapped to a `user_id` and (via a join) the account's `databaseName`. `getSession()` reads and validates the cookie; `requireSession()` does the same but calls `redirect('/login')` if there's no valid session — used by pages and Server Actions. API routes use `getSession()` directly and return `401` instead, since a `redirect()` response is meaningless to a `fetch()` caller.
+**Session model:** Opaque server-side tokens, not JWT. `lib/session.ts` mints a random token; the control DB stores only its SHA-256 hash, mapped to a `user_id` and (via a join) the account's `databaseName`. Keeping the lookup server-side is what makes revocation real — a JWT would be valid until it expired no matter what the server wanted. `getSession()` reads and validates a token; `requireSession()` does the same but calls `redirect('/login')` if there's no valid session — used by pages and Server Actions. API routes use `getSession()` directly and return `401` instead, since a `redirect()` response is meaningless to a `fetch()` caller.
 
-**Route protection (`proxy.ts`):** This Next.js version renamed Middleware to Proxy — the file must be named `proxy.ts` (not `middleware.ts`), export a `proxy` function, and it runs on the Node.js runtime only (no Edge option). `proxy.ts` does a cheap, cookie-*presence*-only check and redirects to `/login` if it's missing. It deliberately does **not** hit the database — the authoritative check (validity, expiry, tenant resolution) happens anyway inside `requireSession()`/`getSession()` on every page render or action call, so duplicating it in `proxy.ts` would just double the round-trips with no security benefit. Don't rely on `proxy.ts` alone when adding a new route — the real check belongs in the page/action/route itself, matching the [official guidance](node_modules/next/dist/docs/01-app/02-guides/authentication.md) for this Next.js version.
+**Two transports carry that token.** The web sends it in an httpOnly `session` cookie. Non-browser clients send `Authorization: Bearer <token>`, obtained from `POST /api/v1/auth/session` ([§5.4](#54-api-route-handlers)). `getSession()` checks the header **first** and falls back to the cookie: an explicit credential on the request is a clearer statement of intent than whatever the browser happened to attach, and it stops a stray cookie from silently deciding which account an API call runs as. The bearer path is inherently CSRF-immune — no ambient credential a third-party page could cause a client to send.
+
+**Session lifetime is per-transport,** recorded in `sessions.origin` (`'web'` or `'mobile'`) and expressed as one table in `lib/session.ts`:
+
+| Origin | TTL | Sliding? |
+|---|---|---|
+| `web` | 30 days | no |
+| `mobile` | 30 days | yes, renewed on use |
+
+A browser session on a possibly-shared machine should lapse on a predictable schedule. A phone shouldn't: it's a personal, lock-screened device where re-typing a password is miserable. But buying that with a *long fixed* TTL would leave a token on a lost phone valid for its whole term, so mobile renews a 30-day window on use instead — indefinite for an active device, dead 30 days after the last use for an idle one. The renewal only fires once the session has burned through a day of its window (`BUMP_AFTER_MS`), so it costs at most one `UPDATE` per session per day rather than one per request. `controlDb.touchSession` guards that `UPDATE` with `expires_at > now()`, so presenting a dead token can never revive it.
+
+`sessions.origin` defaults to `'web'`, which is exactly right as a backfill: every row predating the bearer transport was issued by a browser, because nothing else existed. It's also what a future "sign out my phone" would key on.
+
+**Route protection (`proxy.ts`):** This Next.js version renamed Middleware to Proxy — the file must be named `proxy.ts` (not `middleware.ts`), export a `proxy` function, and it runs on the Node.js runtime only (no Edge option). `proxy.ts` does a cheap, cookie-*presence*-only check and redirects to `/login` if it's missing. **Its matcher excludes `/api` entirely.** Two reasons, and the first is load-bearing: a cookie-presence check cannot see an `Authorization` header, so gating `/api` would bounce every valid bearer request to an HTML login page and the mobile transport could never reach a handler at all. The second is that redirecting a programmatic caller to a login *page* is the wrong answer whatever its credential — the handlers authenticate themselves and return `401` JSON, which a client can actually act on. Excluding `/api` removed redundancy, not a check; every route handler under it calls `getSession()` itself. It deliberately does **not** hit the database — the authoritative check (validity, expiry, tenant resolution) happens anyway inside `requireSession()`/`getSession()` on every page render or action call, so duplicating it in `proxy.ts` would just double the round-trips with no security benefit. Don't rely on `proxy.ts` alone when adding a new route — the real check belongs in the page/action/route itself, matching the [official guidance](node_modules/next/dist/docs/01-app/02-guides/authentication.md) for this Next.js version.
 
 **Gotcha: the matcher must exclude static image files, not just `_next/static`/`_next/image`.** `next/image` optimizes a local `public/` source by re-fetching it through an *internal* server-side request — one that carries no cookies. If `proxy.ts`'s matcher doesn't exclude that file (by extension: `.jpg`, `.png`, `.svg`, etc.), this same proxy redirects that internal fetch to `/login`, and `next/image` fails with "The requested resource isn't a valid image" — regardless of whether the actual visitor is logged in. This surfaced when `app/page.tsx` first added local spot illustrations; the fix is the extension exclusion already in `proxy.ts`'s `matcher`. Keep it in sync with any new static asset type this app starts serving from `public/`.
 

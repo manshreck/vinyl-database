@@ -47,8 +47,15 @@ function bootstrapSql(): string {
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    expires_at TIMESTAMPTZ NOT NULL
+    expires_at TIMESTAMPTZ NOT NULL,
+    origin     TEXT NOT NULL DEFAULT 'web'
   );
+
+  -- Which transport issued the session: it decides the lifetime policy (fixed on the
+  -- web, sliding on mobile) and is what a future "sign out my phone" would key on.
+  -- The 'web' default is exactly right for the backfill: every row predating this
+  -- column was issued by a browser, because no other client existed yet.
+  ALTER TABLE sessions ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'web';
 
   CREATE TABLE IF NOT EXISTS admin_sessions (
     token_hash TEXT PRIMARY KEY,
@@ -80,6 +87,9 @@ export type ControlUser = {
   databaseName: string
 }
 
+/** Where a session was established. Stored as text; validated on the way in. */
+export type SessionOrigin = 'web' | 'mobile'
+
 export type ControlSession = {
   userId: number
   email: string
@@ -87,6 +97,7 @@ export type ControlSession = {
   discogsToken: string | null
   fullName: string | null
   expiresAt: Date
+  origin: SessionOrigin
 }
 
 export type UserSummary = {
@@ -145,25 +156,41 @@ export async function findUserByEmail(email: string): Promise<ControlUser | null
 export async function createSession(
   userId: number,
   tokenHash: string,
-  expiresAt: Date
+  expiresAt: Date,
+  origin: SessionOrigin = 'web'
 ): Promise<void> {
   const pool = await ready()
   await pool.query(
-    `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-    [tokenHash, userId, expiresAt]
+    `INSERT INTO sessions (token_hash, user_id, expires_at, origin) VALUES ($1, $2, $3, $4)`,
+    [tokenHash, userId, expiresAt, origin]
   )
 }
 
 export async function findSessionByTokenHash(tokenHash: string): Promise<ControlSession | null> {
   const pool = await ready()
   const { rows } = await pool.query(
-    `SELECT u.id AS "userId", u.email, u.database_name AS "databaseName", u.discogs_token AS "discogsToken", u.full_name AS "fullName", s.expires_at AS "expiresAt"
+    `SELECT u.id AS "userId", u.email, u.database_name AS "databaseName", u.discogs_token AS "discogsToken", u.full_name AS "fullName", s.expires_at AS "expiresAt", s.origin
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.expires_at > now()`,
     [tokenHash]
   )
   return rows[0] ?? null
+}
+
+/**
+ * Pushes a session's expiry back — the write behind sliding renewal.
+ *
+ * Guarded by `expires_at > now()` so this can only ever extend a session that is
+ * still valid: an expired token cannot be revived by presenting it, and a session
+ * deleted by a concurrent logout is not resurrected.
+ */
+export async function touchSession(tokenHash: string, expiresAt: Date): Promise<void> {
+  const pool = await ready()
+  await pool.query(
+    `UPDATE sessions SET expires_at = $2 WHERE token_hash = $1 AND expires_at > now()`,
+    [tokenHash, expiresAt]
+  )
 }
 
 export async function deleteSessionByTokenHash(tokenHash: string): Promise<void> {

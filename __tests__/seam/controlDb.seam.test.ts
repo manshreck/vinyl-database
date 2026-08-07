@@ -74,10 +74,46 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
       discogsToken: null,
       fullName: null,
       expiresAt,
+      // Defaulted by the column, not passed by createSession's caller — the same
+      // default that backfills every session row predating the bearer transport.
+      origin: 'web',
     })
 
     await controlDb.deleteSessionByTokenHash('token-hash')
     expect(await controlDb.findSessionByTokenHash('token-hash')).toBeNull()
+  })
+
+  it('records the origin a session was created with', async () => {
+    const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+
+    await controlDb.createSession(user.id, 'mobile-hash', new Date(Date.now() + 60_000), 'mobile')
+
+    const found = await controlDb.findSessionByTokenHash('mobile-hash')
+    expect(found?.origin).toBe('mobile')
+  })
+
+  describe('touchSession', () => {
+    it('pushes a live session expiry back', async () => {
+      const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+      await controlDb.createSession(user.id, 'token-hash', new Date(Date.now() + 60_000), 'mobile')
+
+      const extended = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      await controlDb.touchSession('token-hash', extended)
+
+      const found = await controlDb.findSessionByTokenHash('token-hash')
+      expect(found?.expiresAt.getTime()).toBe(extended.getTime())
+    })
+
+    // The `expires_at > now()` guard in the UPDATE is the whole security value of this
+    // function: without it, presenting a long-dead token would resurrect it.
+    it('refuses to revive a session that has already expired', async () => {
+      const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+      await controlDb.createSession(user.id, 'stale-hash', new Date(Date.now() - 60_000), 'mobile')
+
+      await controlDb.touchSession('stale-hash', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
+
+      expect(await controlDb.findSessionByTokenHash('stale-hash')).toBeNull()
+    })
   })
 
   it('updates the stored password hash', async () => {

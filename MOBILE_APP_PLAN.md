@@ -105,17 +105,31 @@ The shared package carries: API types + zod schemas, `discogsMapping`'s pure
 helpers, `artistSort`, condition-label maps, `recordDetails` formatting — everything
 both UIs must agree on.
 
-### D4. Auth transport & lifetime — blocks Phase 2
+### D4. Auth transport & lifetime — ~~blocks Phase 2~~ **DECIDED, implemented**
 
-Recommended: same sessions table, token accepted from `Authorization: Bearer` as
-well as the cookie; a JSON login endpoint returns the raw token once; mobile stores
-it in the platform keystore (Expo SecureStore). No JWTs — the server-side hash
-lookup already provides revocation, which JWTs would take away.
+Same sessions table, token accepted from `Authorization: Bearer` as well as the
+cookie; a JSON login endpoint returns the raw token once; mobile stores it in the
+platform keystore (Expo SecureStore). No JWTs — the server-side hash lookup
+already provides revocation, which JWTs would take away.
 
-Sub-decisions: mobile session TTL (30 days matches web; mobile users expect
-longer — sliding renewal on use is the usual answer); whether **registration**
-exists in the app or stays web-only for v1 (recommend web-only: it's rare,
-and it keeps the setup wizard out of scope); admin stays web-only.
+Resolved sub-decisions:
+
+- **Lifetime is per-transport**, recorded in a new `sessions.origin` column. Web
+  keeps a fixed 30 days; mobile gets a 30-day window that **slides**, renewed on
+  use but at most once a day. A long *fixed* mobile TTL was rejected: it buys
+  "never signs out" at the price of a token on a lost phone staying valid for its
+  whole term, where sliding gives indefinite life to an active device and 30 days
+  from last use to an idle one. See DEVELOPER_GUIDE §10.
+- **Registration stays web-only.** It provisions a tenant schema and happens once
+  per user; there is no endpoint for it.
+- **Admin stays web-only.**
+
+One thing this phase turned up that the plan had not anticipated: `proxy.ts` gated
+every route on *cookie presence*, so a bearer request was redirected to `/login`
+before reaching any handler. `/api` is now excluded from the matcher — the handlers
+all authenticate themselves and return 401 JSON, so this removed redundancy rather
+than a check, and a redirect to an HTML page was never a useful answer for a
+programmatic caller anyway.
 
 ### D5. Offline scope — blocks Phase 5
 
@@ -158,14 +172,15 @@ TESTING.md; the heavy lifting moves down the pyramid via API contract tests.
 
 Each phase leaves `main` shippable; web behavior is unchanged through Phase 4.
 
-- **Phase 1 — service extraction.** Move action bodies to `lib/services/*` taking
+- **Phase 1 — service extraction. ✅ Done.** Move action bodies to `lib/services/*` taking
   typed params; actions become FormData-parsing adapters. Pure refactor: the
   existing 400+ unit tests must pass unmodified or with mechanical mock-path
   updates only. This phase is worth doing even if mobile never happens.
-- **Phase 2 — bearer transport.** `getSession()` checks `Authorization` header
-  before the cookie; `POST /api/v1/auth/session` (login → token),
-  `DELETE` (logout). Note: the token path is inherently CSRF-immune — no cookie,
-  no cross-site ambient credential.
+- **Phase 2 — bearer transport. ✅ Done.** `getSession()` checks the `Authorization`
+  header before the cookie; `POST /api/v1/auth/session` (login → token), `DELETE`
+  (logout), `GET` (whoami); `sessions.origin` plus the per-transport lifetime policy
+  from D4; `/api` excluded from `proxy.ts`. Note: the token path is inherently
+  CSRF-immune — no cookie, no cross-site ambient credential.
 - **Phase 3 — the API.** `/api/v1/*` route handlers over the services (surface
   inventory in §5), zod validation, the D8 envelope, pagination/filter parity with
   the pages. **API contract tests** at the system layer: real handlers, scratch
