@@ -46,17 +46,50 @@ export type ReleaseHoldings = {
 }
 
 /**
- * Narrows to the release a "new release" form would duplicate: same title and same
- * artist, both matched case-insensitively. Returns null when the form doesn't carry
+ * Which release an intake refers to: one the user picked out of the collection, or a
+ * new one described by the form/request.
+ *
+ * A discriminated union rather than a bag of optional fields, so "picked an existing
+ * release" and "described a new one" cannot both be half-true — the ambiguity that
+ * would otherwise have to be re-derived at every call site.
+ */
+export type ReleaseSelection =
+  | { kind: 'existing'; releaseId: number }
+  | {
+      kind: 'new'
+      title: string
+      originalReleaseYear: number
+      artistId: number | null
+      artistName: string
+      genreIds: number[]
+      coverImageUrl: string | null
+    }
+
+/** The pressing details a caller supplies, before normalization. */
+export type PressingSpecInput = {
+  formatId: number
+  pressingYear: number | null
+  country: string | null
+  label: string | null
+  catalogNumber: string | null
+  vinylColor: string | null
+  discCount: number
+}
+
+/**
+ * Narrows to the release a "new release" intake would duplicate: same title and same
+ * artist, both matched case-insensitively. Returns null when the caller doesn't carry
  * enough to match on — matching on title alone would collide across artists
  * (countless albums are called "Greatest Hits").
  */
-function buildNewReleaseWhere(formData: FormData): Prisma.ReleaseWhereInput | null {
-  const title = ((formData.get('newReleaseTitle') as string) ?? '').trim()
+function buildNewReleaseWhere(
+  selection: Extract<ReleaseSelection, { kind: 'new' }>
+): Prisma.ReleaseWhereInput | null {
+  const title = selection.title.trim()
   if (!title) return null
 
-  const artistId = formData.get('newArtistId') ? Number(formData.get('newArtistId')) : null
-  const artistName = ((formData.get('newArtistName') as string) ?? '').trim()
+  const artistId = selection.artistId
+  const artistName = selection.artistName.trim()
 
   const artistMatch: Prisma.ReleaseArtistWhereInput | null = artistId
     ? { artistId }
@@ -87,16 +120,15 @@ function normalizeText(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase()
 }
 
-function pressingSpecFromForm(formData: FormData): PressingSpec {
-  const pressingYearRaw = (formData.get('pressingYear') as string) ?? ''
+function normalizePressingSpec(input: PressingSpecInput): PressingSpec {
   return {
-    formatId: Number(formData.get('formatId')),
-    pressingYear: pressingYearRaw.trim() ? Number(pressingYearRaw) : null,
-    country: normalizeText(formData.get('country') as string),
-    label: normalizeText(formData.get('label') as string),
-    catalogNumber: normalizeText(formData.get('catalogNumber') as string),
-    vinylColor: normalizeText(formData.get('vinylColor') as string),
-    discCount: Number(formData.get('discCount')) || 1,
+    formatId: input.formatId,
+    pressingYear: input.pressingYear,
+    country: normalizeText(input.country),
+    label: normalizeText(input.label),
+    catalogNumber: normalizeText(input.catalogNumber),
+    vinylColor: normalizeText(input.vinylColor),
+    discCount: input.discCount || 1,
   }
 }
 
@@ -142,10 +174,13 @@ function sameSpec(
  */
 export async function findReleaseHoldings(
   prisma: PrismaClient,
-  formData: FormData
+  selection: ReleaseSelection,
+  spec: PressingSpecInput
 ): Promise<ReleaseHoldings | null> {
-  const explicitReleaseId = formData.get('releaseId') ? Number(formData.get('releaseId')) : null
-  const where = explicitReleaseId ? { releaseId: explicitReleaseId } : buildNewReleaseWhere(formData)
+  const where =
+    selection.kind === 'existing'
+      ? { releaseId: selection.releaseId }
+      : buildNewReleaseWhere(selection)
   if (!where) return null
 
   const release = await prisma.release.findFirst({
@@ -158,7 +193,7 @@ export async function findReleaseHoldings(
   })
   if (!release) return null
 
-  const spec = pressingSpecFromForm(formData)
+  const normalizedSpec = normalizePressingSpec(spec)
 
   return {
     releaseId: release.releaseId,
@@ -189,7 +224,7 @@ export async function findReleaseHoldings(
       catalogNumber: w.catalogNumber,
       vinylColor: w.vinylColor,
       discCount: w.discCount,
-      identical: sameSpec(w, spec),
+      identical: sameSpec(w, normalizedSpec),
     })),
   }
 }
@@ -212,20 +247,18 @@ export async function findReleaseHoldings(
  */
 export async function resolveReleaseId(
   prisma: PrismaClient,
-  formData: FormData,
+  selection: ReleaseSelection,
   matchedReleaseId: number | null = null
 ): Promise<number> {
   if (matchedReleaseId) return matchedReleaseId
+  if (selection.kind === 'existing') return selection.releaseId
 
-  const existingReleaseId = formData.get('releaseId') ? Number(formData.get('releaseId')) : null
-  if (existingReleaseId) return existingReleaseId
-
-  const title = ((formData.get('newReleaseTitle') as string) ?? '').trim()
-  const originalReleaseYear = Number(formData.get('newReleaseYear'))
-  const artistName = ((formData.get('newArtistName') as string) ?? '').trim()
-  const existingArtistId = formData.get('newArtistId') ? Number(formData.get('newArtistId')) : null
-  const genreIds = formData.getAll('genreIds').map(Number).filter(Boolean)
-  const coverImageUrl = (formData.get('newReleaseCoverImageUrl') as string | null)?.trim() || null
+  const title = selection.title.trim()
+  const originalReleaseYear = selection.originalReleaseYear
+  const artistName = selection.artistName.trim()
+  const existingArtistId = selection.artistId
+  const genreIds = selection.genreIds
+  const coverImageUrl = selection.coverImageUrl
 
   let artistId = existingArtistId
   if (!artistId) {

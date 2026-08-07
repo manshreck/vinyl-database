@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import type { PrismaClient } from '@prisma/client'
-import { resolveReleaseId } from '@/lib/releaseIntake'
+import { resolveReleaseId, type ReleaseSelection } from '@/lib/releaseIntake'
 
 const mockArtistFindFirst = jest.fn()
 const mockArtistCreate = jest.fn()
@@ -16,16 +16,34 @@ const mockPrisma = {
   release: { create: (...args: unknown[]) => mockReleaseCreate(...args) },
 } as unknown as PrismaClient
 
-function makeFormData(fields: Record<string, string | string[]>): FormData {
-  const fd = new FormData()
-  for (const [key, value] of Object.entries(fields)) {
-    if (Array.isArray(value)) {
-      value.forEach((v) => fd.append(key, v))
-    } else {
-      fd.append(key, value)
-    }
+type NewReleaseFields = {
+  newReleaseTitle?: string
+  newReleaseYear?: string
+  newArtistName?: string
+  newArtistId?: string
+  genreIds?: string[]
+  newReleaseCoverImageUrl?: string
+}
+
+/**
+ * Builds the typed selection resolveReleaseId now takes. Field names mirror the form
+ * they used to arrive in, so these cases still read as the submissions they describe —
+ * including the "absent entirely" ones, which are the regressions this file exists for.
+ */
+function newRelease(fields: NewReleaseFields): ReleaseSelection {
+  return {
+    kind: 'new',
+    title: fields.newReleaseTitle ?? '',
+    originalReleaseYear: Number(fields.newReleaseYear ?? ''),
+    artistId: fields.newArtistId ? Number(fields.newArtistId) : null,
+    artistName: fields.newArtistName ?? '',
+    genreIds: (fields.genreIds ?? []).map(Number),
+    coverImageUrl: fields.newReleaseCoverImageUrl ?? null,
   }
-  return fd
+}
+
+function existingRelease(releaseId: number): ReleaseSelection {
+  return { kind: 'existing', releaseId }
 }
 
 describe('resolveReleaseId', () => {
@@ -37,20 +55,19 @@ describe('resolveReleaseId', () => {
   })
 
   it('returns the existing releaseId without touching prisma when one is provided', async () => {
-    const fd = makeFormData({ releaseId: '42' })
-    const result = await resolveReleaseId(mockPrisma, fd)
+    const result = await resolveReleaseId(mockPrisma, existingRelease(42))
     expect(result).toBe(42)
     expect(mockArtistCreate).not.toHaveBeenCalled()
     expect(mockReleaseCreate).not.toHaveBeenCalled()
   })
 
   it('creates a new artist and release when no releaseId is given and no artist matches by name', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
     })
-    const result = await resolveReleaseId(mockPrisma, fd)
+    const result = await resolveReleaseId(mockPrisma, selection)
 
     expect(mockArtistFindFirst).toHaveBeenCalledWith({ where: { name: 'Miles Davis' } })
     expect(mockArtistCreate).toHaveBeenCalledWith({
@@ -73,12 +90,12 @@ describe('resolveReleaseId', () => {
   // exactly. Must reuse the existing artist instead of trying to create a duplicate.
   it('reuses an existing artist by exact name match instead of creating a duplicate', async () => {
     mockArtistFindFirst.mockResolvedValue({ artistId: 5, name: 'Miles Davis', sortName: 'Davis, Miles' })
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Someone Else Made This',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     expect(mockArtistCreate).not.toHaveBeenCalled()
     expect(mockReleaseCreate).toHaveBeenCalledWith({
@@ -89,13 +106,13 @@ describe('resolveReleaseId', () => {
   })
 
   it('uses an existing artist id instead of creating one when newArtistId is provided', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
       newArtistId: '12',
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     expect(mockArtistFindFirst).not.toHaveBeenCalled()
     expect(mockArtistCreate).not.toHaveBeenCalled()
@@ -107,13 +124,13 @@ describe('resolveReleaseId', () => {
   })
 
   it('includes an ordered genres block when genreIds are provided', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
       genreIds: ['3', '7'],
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     expect(mockReleaseCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -128,25 +145,25 @@ describe('resolveReleaseId', () => {
   })
 
   it('omits the genres field entirely when no genreIds are provided', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     const callData = mockReleaseCreate.mock.calls[0][0].data
     expect(callData).not.toHaveProperty('genres')
   })
 
   it('passes newReleaseCoverImageUrl through when provided', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
       newReleaseCoverImageUrl: 'https://i.discogs.com/cover.jpg',
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     expect(mockReleaseCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ coverImageUrl: 'https://i.discogs.com/cover.jpg' }),
@@ -154,12 +171,12 @@ describe('resolveReleaseId', () => {
   })
 
   it('trims whitespace from title and artist name', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: '  Kind Of Blue  ',
       newReleaseYear: '1959',
       newArtistName: '  Miles Davis  ',
     })
-    await resolveReleaseId(mockPrisma, fd)
+    await resolveReleaseId(mockPrisma, selection)
 
     expect(mockArtistCreate).toHaveBeenCalledWith({
       data: { name: 'Miles Davis', sortName: 'Miles Davis' },
@@ -173,22 +190,22 @@ describe('resolveReleaseId', () => {
   // selected or "New release" is started) used to submit the form with none of
   // the newRelease* fields present at all, crashing on `.trim()` of null.
   it('does not throw when newReleaseTitle is entirely absent from the form data', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseYear: '1959',
       newArtistName: 'Miles Davis',
     })
-    await expect(resolveReleaseId(mockPrisma, fd)).resolves.toBe(77)
+    await expect(resolveReleaseId(mockPrisma, selection)).resolves.toBe(77)
     expect(mockReleaseCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ title: '' }),
     })
   })
 
   it('does not throw when newArtistName is entirely absent from the form data', async () => {
-    const fd = makeFormData({
+    const selection = newRelease({
       newReleaseTitle: 'Kind Of Blue',
       newReleaseYear: '1959',
     })
-    await expect(resolveReleaseId(mockPrisma, fd)).resolves.toBe(77)
+    await expect(resolveReleaseId(mockPrisma, selection)).resolves.toBe(77)
     expect(mockArtistCreate).toHaveBeenCalledWith({
       data: { name: '', sortName: '' },
     })
