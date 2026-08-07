@@ -16,29 +16,26 @@ const mockPrisma = {
   release: { create: (...args: unknown[]) => mockReleaseCreate(...args) },
 } as unknown as PrismaClient
 
-type NewReleaseFields = {
-  newReleaseTitle?: string
-  newReleaseYear?: string
-  newArtistName?: string
-  newArtistId?: string
-  genreIds?: string[]
-  newReleaseCoverImageUrl?: string
-}
+type NewRelease = Extract<ReleaseSelection, { kind: 'new' }>
 
 /**
- * Builds the typed selection resolveReleaseId now takes. Field names mirror the form
- * they used to arrive in, so these cases still read as the submissions they describe —
- * including the "absent entirely" ones, which are the regressions this file exists for.
+ * Defaults for the fields a case doesn't care about, so each test states only what it
+ * varies. Deliberately uses ReleaseSelection's own field names rather than the form
+ * field names these once arrived as: translating form input into this shape is
+ * parseReleaseSelection's job, and it is tested directly (see
+ * __tests__/actions/formInput.test.ts). A second translation living here would be an
+ * untested reimplementation that could drift from the real one while still passing.
  */
-function newRelease(fields: NewReleaseFields): ReleaseSelection {
+function newRelease(overrides: Partial<Omit<NewRelease, 'kind'>> = {}): ReleaseSelection {
   return {
     kind: 'new',
-    title: fields.newReleaseTitle ?? '',
-    originalReleaseYear: Number(fields.newReleaseYear ?? ''),
-    artistId: fields.newArtistId ? Number(fields.newArtistId) : null,
-    artistName: fields.newArtistName ?? '',
-    genreIds: (fields.genreIds ?? []).map(Number),
-    coverImageUrl: fields.newReleaseCoverImageUrl ?? null,
+    title: '',
+    originalReleaseYear: 0,
+    artistId: null,
+    artistName: '',
+    genreIds: [],
+    coverImageUrl: null,
+    ...overrides,
   }
 }
 
@@ -63,9 +60,9 @@ describe('resolveReleaseId', () => {
 
   it('creates a new artist and release when no releaseId is given and no artist matches by name', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
     })
     const result = await resolveReleaseId(mockPrisma, selection)
 
@@ -91,9 +88,9 @@ describe('resolveReleaseId', () => {
   it('reuses an existing artist by exact name match instead of creating a duplicate', async () => {
     mockArtistFindFirst.mockResolvedValue({ artistId: 5, name: 'Miles Davis', sortName: 'Davis, Miles' })
     const selection = newRelease({
-      newReleaseTitle: 'Someone Else Made This',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
+      title: 'Someone Else Made This',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -107,10 +104,10 @@ describe('resolveReleaseId', () => {
 
   it('uses an existing artist id instead of creating one when newArtistId is provided', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
-      newArtistId: '12',
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
+      artistId: 12,
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -125,10 +122,10 @@ describe('resolveReleaseId', () => {
 
   it('includes an ordered genres block when genreIds are provided', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
-      genreIds: ['3', '7'],
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
+      genreIds: [3, 7],
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -146,9 +143,9 @@ describe('resolveReleaseId', () => {
 
   it('omits the genres field entirely when no genreIds are provided', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -158,10 +155,10 @@ describe('resolveReleaseId', () => {
 
   it('passes newReleaseCoverImageUrl through when provided', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
-      newReleaseCoverImageUrl: 'https://i.discogs.com/cover.jpg',
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
+      coverImageUrl: 'https://i.discogs.com/cover.jpg',
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -172,9 +169,9 @@ describe('resolveReleaseId', () => {
 
   it('trims whitespace from title and artist name', async () => {
     const selection = newRelease({
-      newReleaseTitle: '  Kind Of Blue  ',
-      newReleaseYear: '1959',
-      newArtistName: '  Miles Davis  ',
+      title: '  Kind Of Blue  ',
+      originalReleaseYear: 1959,
+      artistName: '  Miles Davis  ',
     })
     await resolveReleaseId(mockPrisma, selection)
 
@@ -191,8 +188,8 @@ describe('resolveReleaseId', () => {
   // the newRelease* fields present at all, crashing on `.trim()` of null.
   it('does not throw when newReleaseTitle is entirely absent from the form data', async () => {
     const selection = newRelease({
-      newReleaseYear: '1959',
-      newArtistName: 'Miles Davis',
+      originalReleaseYear: 1959,
+      artistName: 'Miles Davis',
     })
     await expect(resolveReleaseId(mockPrisma, selection)).resolves.toBe(77)
     expect(mockReleaseCreate).toHaveBeenCalledWith({
@@ -202,8 +199,8 @@ describe('resolveReleaseId', () => {
 
   it('does not throw when newArtistName is entirely absent from the form data', async () => {
     const selection = newRelease({
-      newReleaseTitle: 'Kind Of Blue',
-      newReleaseYear: '1959',
+      title: 'Kind Of Blue',
+      originalReleaseYear: 1959,
     })
     await expect(resolveReleaseId(mockPrisma, selection)).resolves.toBe(77)
     expect(mockArtistCreate).toHaveBeenCalledWith({
