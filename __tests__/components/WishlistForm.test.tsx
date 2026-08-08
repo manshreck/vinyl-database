@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import WishlistForm from '@/app/wishlist/new/WishlistForm'
 
@@ -171,6 +171,58 @@ describe('WishlistForm', () => {
       expect(mockCreateWishlistItem).toHaveBeenCalledTimes(1)
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(screen.getByText('Save to wishlist')).not.toBeDisabled()
+    })
+  })
+
+  // Same defect as PressingsForm: the artist box is a search field that is also
+  // pre-filled from Discogs, and offered a dropdown duplicating the name already there.
+  describe('artist autocomplete only searches for typed text', () => {
+    const settleDebounce = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      })
+
+    const searchedForArtists = () =>
+      (global.fetch as jest.Mock).mock.calls.some(([url]) =>
+        String(url).includes('/api/artists/search')
+      )
+
+    it('does not search for an artist name arriving pre-filled from Discogs', async () => {
+      render(
+        <WishlistForm
+          formats={[]}
+          genres={[]}
+          initialValues={{
+            title: 'Kind of Blue',
+            originalReleaseYear: 1959,
+            pressingYear: null,
+            artistName: 'Miles Davis',
+            genreIds: [],
+            formatId: null,
+            country: null,
+            label: null,
+            catalogNumber: null,
+            discCount: 1,
+            vinylColor: null,
+            coverImageUrl: null,
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText('Search or enter artist name…')).toHaveValue('Miles Davis')
+      await settleDebounce()
+
+      expect(searchedForArtists()).toBe(false)
+    })
+
+    it('searches once the user actually types', async () => {
+      const user = userEvent.setup()
+      render(<WishlistForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('Search or enter artist name…'), 'Miles')
+      await settleDebounce()
+
+      expect(searchedForArtists()).toBe(true)
     })
   })
 })

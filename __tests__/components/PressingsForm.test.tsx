@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PressingsForm from '@/app/pressings/new/PressingsForm'
 
@@ -396,6 +396,81 @@ describe('PressingsForm', () => {
       fireEvent.wheel(currentValue)
 
       expect(document.activeElement).not.toBe(currentValue)
+    })
+  })
+
+  // The artist box is a search field that is also pre-filled from Discogs, so it has
+  // to tell a search term apart from a settled value. Getting that wrong offered a
+  // dropdown whose only entry duplicated the name already in the field.
+  describe('artist autocomplete only searches for typed text', () => {
+    /** Waits past the 300ms debounce, letting any state it schedules settle inside act. */
+    const settleDebounce = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      })
+
+    const discogsValues = {
+      title: 'Kind of Blue',
+      originalReleaseYear: 1959,
+      pressingYear: null,
+      artistName: 'Miles Davis',
+      genreIds: [],
+      formatId: null,
+      country: null,
+      label: null,
+      catalogNumber: null,
+      discCount: 1,
+      vinylColor: null,
+      coverImageUrl: null,
+    }
+
+    it('does not search for an artist name arriving pre-filled from Discogs', async () => {
+      render(<PressingsForm formats={[]} genres={[]} initialValues={discogsValues} />)
+
+      expect(screen.getByPlaceholderText('Search or enter artist name…')).toHaveValue('Miles Davis')
+
+      // Long enough for the 300ms debounce to have fired had anything scheduled it.
+      await settleDebounce()
+
+      const searched = (global.fetch as jest.Mock).mock.calls.some(([url]) =>
+        String(url).includes('/api/artists/search')
+      )
+      expect(searched).toBe(false)
+    })
+
+    it('searches once the user actually types', async () => {
+      const user = userEvent.setup()
+      render(<PressingsForm formats={[]} genres={[]} />)
+
+      await user.type(screen.getByPlaceholderText('Search or enter artist name…'), 'Miles')
+      await settleDebounce()
+
+      const searched = (global.fetch as jest.Mock).mock.calls.some(([url]) =>
+        String(url).includes('/api/artists/search')
+      )
+      expect(searched).toBe(true)
+    })
+
+    it('does not reopen the dropdown after an artist is picked', async () => {
+      const user = userEvent.setup()
+      global.fetch = jest.fn().mockResolvedValue({
+        json: () => Promise.resolve([{ artistId: 7, name: 'Miles Davis', sortName: 'Davis, Miles' }]),
+      }) as unknown as typeof fetch
+
+      render(<PressingsForm formats={[]} genres={[]} />)
+      const input = screen.getByPlaceholderText('Search or enter artist name…')
+
+      await user.type(input, 'Miles')
+      const option = await screen.findByRole('button', { name: 'Miles Davis' })
+      await user.click(option)
+
+      expect(input).toHaveValue('Miles Davis')
+
+      // Selecting sets the query to the chosen name, which would re-trigger the
+      // debounced search and pop the dropdown open again on top of the settled value.
+      await settleDebounce()
+
+      expect(screen.queryByRole('button', { name: 'Miles Davis' })).not.toBeInTheDocument()
     })
   })
 })

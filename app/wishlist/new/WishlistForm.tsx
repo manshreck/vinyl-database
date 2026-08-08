@@ -66,6 +66,14 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
   const [selectedArtist, setSelectedArtist] = useState<ArtistResult | null>(null)
   const debouncedArtistQuery = useDebounce(artistQuery, 300)
 
+  // Whether the field currently holds a search term rather than a settled value.
+  // Without this the box searches for text the user never typed: arriving from Discogs
+  // seeds artistQuery with the artist's name, so the search fires on mount and offers
+  // a dropdown containing the one name already in the field. It also reopens after a
+  // pick, because selecting sets the query to the chosen name and the debounce then
+  // searches for that. Only typing should open the dropdown.
+  const [artistIsSearch, setArtistIsSearch] = useState(false)
+
   const [selectedGenres, setSelectedGenres] = useState<number[]>(initialValues?.genreIds ?? [])
   const [pending, setPending] = useState(false)
 
@@ -85,15 +93,16 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
 
   // Search artists
   useEffect(() => {
-    if (debouncedArtistQuery.length < 2) return
+    if (!artistIsSearch || debouncedArtistQuery.length < 2) return
     fetch(`/api/artists/search?q=${encodeURIComponent(debouncedArtistQuery)}`)
       .then((r) => r.json())
       .then(setArtistResults)
-  }, [debouncedArtistQuery])
+  }, [debouncedArtistQuery, artistIsSearch])
 
   // Hidden by derivation rather than by clearing state inside the effect above, which
   // would cascade an extra render.
-  const visibleArtistResults = debouncedArtistQuery.length < 2 ? [] : artistResults
+  const visibleArtistResults =
+    !artistIsSearch || debouncedArtistQuery.length < 2 ? [] : artistResults
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -110,6 +119,8 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
     setSelectedArtist(a)
     setArtistQuery(a.name)
     setArtistResults([])
+    // The name is now a settled value, so the pending debounce must not search for it.
+    setArtistIsSearch(false)
   }
 
   function toggleGenre(id: number) {
@@ -249,7 +260,7 @@ export default function WishlistForm({ formats, genres, initialValues, selectedR
                 className={inputClass}
                 placeholder="Search or enter artist name…"
                 value={artistQuery}
-                onChange={(e) => { setArtistQuery(e.target.value); setSelectedArtist(null) }}
+                onChange={(e) => { setArtistQuery(e.target.value); setSelectedArtist(null); setArtistIsSearch(true) }}
                 required
               />
               {/* Hidden inputs for server action */}
