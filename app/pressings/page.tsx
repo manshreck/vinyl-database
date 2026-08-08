@@ -83,6 +83,15 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
 
   const totalArtists = artists.length
 
+  // Filed the same way the table below files them: `orderBy: { sortName }` in the query
+  // is a plain string sort, so "The Smiths" lands under T while its row in the table
+  // sits under S. Sorting here rather than in SQL because artistSortKey — which strips
+  // the leading article — is the app's definition of alphabetical order, and Postgres
+  // has no equivalent collation to hand.
+  const artistOptions = [...artists].sort((a, b) =>
+    artistSortKey(a.sortName).localeCompare(artistSortKey(b.sortName))
+  )
+
   pressings.sort((a, b) => {
     const aSortName = a.release.artists[0]?.artist.sortName ?? ''
     const bSortName = b.release.artists[0]?.artist.sortName ?? ''
@@ -153,7 +162,7 @@ export default async function PressingsPage({ searchParams }: { searchParams: Se
 
         <div className="mb-6">
           <Suspense>
-            <FilterPanel artists={artists} formats={formats} genres={genres} />
+            <FilterPanel artists={artistOptions} formats={formats} genres={genres} />
           </Suspense>
         </div>
 
