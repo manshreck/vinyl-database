@@ -31,6 +31,35 @@ function bootstrapSql(): string {
   CREATE SCHEMA IF NOT EXISTS "${schema}";
   SET search_path TO "${schema}";
 
+  -- Take both table locks up front, in this exact order, before any DDL below.
+  --
+  -- Everything in this batch runs as one implicit transaction, so every lock it
+  -- takes is held until the end. The DDL below reaches 'users' first and 'sessions'
+  -- second, while the hot path -- findSessionByTokenHash's "FROM sessions JOIN
+  -- users" -- locks them the other way around. That inversion is a deadlock: a
+  -- request holding AccessShare on sessions waits for users while this batch holds
+  -- AccessExclusive on users and waits for sessions. Postgres detects the cycle and
+  -- kills the request, which surfaces to the user as a deadlock error on an ordinary
+  -- page load. It happened once in production on 2026-08-07.
+  --
+  -- (Deliberately not spelling out Postgres's exact error phrase here: this batch is
+  -- echoed into the server log whenever a statement in it fails, and a comment
+  -- containing that phrase makes the log unsearchable for the real thing.)
+  --
+  -- Acquiring both here, sessions first, matches the query's order and removes the
+  -- cycle: a concurrent reader either finishes before this batch starts, or blocks
+  -- on sessions while holding nothing at all.
+  --
+  -- Conditional because on a brand-new schema the tables don't exist yet -- and
+  -- can't be contended either, since nothing can be reading a table that isn't
+  -- there. LOCK is legal here only because the batch is an implicit transaction.
+  DO $$
+  BEGIN
+    IF to_regclass('sessions') IS NOT NULL AND to_regclass('users') IS NOT NULL THEN
+      LOCK TABLE sessions, users IN ACCESS EXCLUSIVE MODE;
+    END IF;
+  END $$;
+
   CREATE TABLE IF NOT EXISTS users (
     id             SERIAL PRIMARY KEY,
     email          VARCHAR(255) NOT NULL UNIQUE,
