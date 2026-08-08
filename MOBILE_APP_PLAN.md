@@ -83,15 +83,47 @@ The stated Android-now-iOS-later path is precisely what Expo exists for. PWA is
 worth noting as a zero-cost stopgap while phases 1–4 land, since they are all
 backend work.
 
-### D2. API style — blocks Phase 3
+### D2. API style — ~~blocks Phase 3~~ **DECIDED**
 
-Plain **REST + JSON** (recommended) over tRPC or GraphQL. tRPC's type-sharing win is
-achievable more simply with a shared types package (D4) given both ends are TS;
-GraphQL's flexibility solves problems this app doesn't have. REST keeps the API
-curl-able, testable with the existing patterns, and legible to a future non-TS
-client. Input validation is currently light hand-rolling inside actions; a public
-API raises the bar — adopting **zod** schemas (shared with mobile for client-side
-validation) is part of this decision.
+Plain **REST + JSON**, with **zod** validating the boundary.
+
+REST over tRPC or GraphQL. tRPC's type-sharing win is achievable more simply with a
+shared types package (D3) given both ends are TS; GraphQL's flexibility solves
+problems this app doesn't have, and its caching story is not worth buying for a
+collection this size. REST keeps the API curl-able, testable with the existing
+patterns, and legible to a future non-TS client. It also expresses the one genuinely
+awkward interaction — the duplicate-confirmation dance — as `409` carrying
+`ReleaseHoldings`, which a query language would have made harder rather than easier.
+
+**zod at the `/api/v1` boundary only**, for request bodies and query params.
+
+The reasoning that settled it: Phase 3 needs a second set of parsers no matter what.
+`app/actions/formInput.ts` turns `FormData` — all strings — into typed inputs, and
+JSON arrives already typed, so none of it is reusable. The choice was never "extra
+machinery vs. none", only what the new parsers are written in. Hand-rolling leaves
+each input type with a TypeScript type *and* two independent parsers that must agree
+with it; with zod the schema **is** the type via `z.infer`, so the runtime check and
+the compile-time type cannot drift. Phase 5 would otherwise write the same validation
+a third time in the app.
+
+Two boundaries this deliberately does **not** cross:
+
+- **`app/actions/formInput.ts` stays hand-rolled.** It is tested and it works, and
+  rewriting it buys nothing. New code at the API boundary uses zod; the form parsers
+  are left alone.
+- **Services keep their plain TypeScript input types.** Schemas are written to
+  produce exactly those types, so a schema that drifts from `PressingDetailsInput`
+  is a compile error rather than a runtime surprise. Services stay free of any
+  validation library, matching the Phase 1 rule that they import nothing from a
+  transport.
+
+The concrete defect this closes: `parseReleaseSelection` relies on `Number(null)`
+being `0`, so an absent `originalReleaseYear` becomes year **0**. On the web the
+form's `required` attribute masks it; an API has nothing in that spot. Pinned as
+known-wrong in `__tests__/actions/formInput.test.ts`, to be rejected outright at the
+API boundary.
+
+`zod` is not yet a dependency — Phase 3 adds it.
 
 ### D3. Repository layout — blocks Phase 4
 
