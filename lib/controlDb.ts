@@ -137,6 +137,21 @@ export type UserSummary = {
   lastLoginAt: Date | null
 }
 
+/**
+ * The one place an email is canonicalized. `users.email` is a plain UNIQUE column,
+ * which would otherwise hold `A@b.com` and `a@b.com` as two separate accounts.
+ *
+ * It lives here, next to the queries, rather than in the callers: every read and
+ * write of an email goes through this module, so normalizing at this boundary makes
+ * "the same address always finds the same row" true by construction. Callers used to
+ * do it themselves, and two of the four had quietly stopped — correct only because
+ * their value happened to arrive already-canonical from the session. See
+ * DEVELOPER_GUIDE §7, "Display strings are identity".
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
 export async function createUser(
   email: string,
   passwordHash: string,
@@ -147,7 +162,7 @@ export async function createUser(
     `INSERT INTO users (email, password_hash, database_name)
      VALUES ($1, $2, $3)
      RETURNING id, email, password_hash AS "passwordHash", database_name AS "databaseName"`,
-    [email, passwordHash, databaseName]
+    [normalizeEmail(email), passwordHash, databaseName]
   )
   return rows[0]
 }
@@ -177,7 +192,7 @@ export async function findUserByEmail(email: string): Promise<ControlUser | null
   const { rows } = await pool.query(
     `SELECT id, email, password_hash AS "passwordHash", database_name AS "databaseName"
      FROM users WHERE email = $1`,
-    [email]
+    [normalizeEmail(email)]
   )
   return rows[0] ?? null
 }

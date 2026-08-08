@@ -99,9 +99,28 @@ describe('registerUser', () => {
     expect(result).toEqual({ error: 'Could not set up your collection database. Please try again.' })
   })
 
-  it('lowercases and trims the email', async () => {
+  // Lower-casing moved into controlDb.normalizeEmail, so that every read and write
+  // gets it rather than only the callers that remembered. It is therefore invisible
+  // to this test, which doubles controlDb; the canonicalisation itself is verified
+  // against real Postgres in __tests__/seam/controlDb.seam.test.ts. What is still
+  // registerUser's own job is trimming, because a whitespace-only address has to
+  // fail the "required" check rather than reach the database.
+  it('trims the email before validating it', async () => {
     const fd = makeFormData({ ...VALID_FIELDS, email: '  New@Example.com  ' })
     await registerUser(null, fd)
-    expect(mockCreateUser).toHaveBeenCalledWith('new@example.com', expect.any(String), expect.any(String))
+    expect(mockCreateUser).toHaveBeenCalledWith(
+      'New@Example.com',
+      expect.any(String),
+      expect.any(String)
+    )
+  })
+
+  it('rejects a whitespace-only email as missing', async () => {
+    const fd = makeFormData({ ...VALID_FIELDS, email: '   ' })
+
+    const result = await registerUser(null, fd)
+
+    expect(result).toEqual({ error: 'Email and password are required.' })
+    expect(mockCreateUser).not.toHaveBeenCalled()
   })
 })

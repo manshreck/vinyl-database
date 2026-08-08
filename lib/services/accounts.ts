@@ -45,7 +45,10 @@ function isSchemaNameCollision(err: unknown): boolean {
  * nothing behind rather than an account with no collection behind it.
  */
 export async function registerUser(input: RegisterInput): Promise<RegisterResult> {
-  const email = input.email.trim().toLowerCase()
+  // Not lower-cased here: controlDb.normalizeEmail owns that for every read and write,
+  // so a caller cannot get it wrong by forgetting. Still trimmed, because a
+  // whitespace-only string has to fail the "required" check below.
+  const email = input.email.trim()
   const { password, confirmPassword } = input
 
   if (!email || !password) return { status: 'invalid', message: 'Email and password are required.' }
@@ -100,7 +103,7 @@ export async function authenticate(
   email: string,
   password: string
 ): Promise<AuthenticateResult> {
-  const user = await findUserByEmail(email.trim().toLowerCase())
+  const user = await findUserByEmail(email)
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return { status: 'invalid_credentials' }
   }

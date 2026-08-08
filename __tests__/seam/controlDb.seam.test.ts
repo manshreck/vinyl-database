@@ -83,6 +83,35 @@ describe('controlDb.ts ↔ real Postgres (seam)', () => {
     expect(await controlDb.findSessionByTokenHash('token-hash')).toBeNull()
   })
 
+  // users.email is a plain UNIQUE column, so "the same address" means "the same
+  // bytes" unless something canonicalises first. controlDb does, on the way in and
+  // on the way out, which is what makes these two cases hold.
+  describe('email canonicalisation', () => {
+    it('finds an account by any casing or padding of its address', async () => {
+      const created = await controlDb.createUser(
+        '  Miles@Example.COM ',
+        'hashed-pw',
+        'vinyl_user_abc123def456'
+      )
+      expect(created.email).toBe('miles@example.com')
+
+      for (const variant of ['miles@example.com', 'MILES@EXAMPLE.COM', '  Miles@Example.com  ']) {
+        expect((await controlDb.findUserByEmail(variant))?.id).toBe(created.id)
+      }
+    })
+
+    // The case that used to slip through: the caller lower-cased before registering,
+    // so a differently-cased address reached the INSERT unnormalised and created a
+    // second account for the same person.
+    it('refuses a second account differing only in case', async () => {
+      await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
+
+      await expect(
+        controlDb.createUser('MILES@EXAMPLE.COM', 'hashed-pw-2', 'vinyl_user_fed654cba321')
+      ).rejects.toThrow(/unique/i)
+    })
+  })
+
   it('records the origin a session was created with', async () => {
     const user = await controlDb.createUser('miles@example.com', 'hashed-pw', 'vinyl_user_abc123def456')
 
