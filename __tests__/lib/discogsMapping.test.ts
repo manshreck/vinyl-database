@@ -21,6 +21,24 @@ describe('cleanDiscogsArtistName', () => {
   it('does not strip a number that is part of the actual name', () => {
     expect(cleanDiscogsArtistName('Blink-182')).toBe('Blink-182')
   })
+
+  it('spells out Discogs\' compilation placeholder', () => {
+    expect(cleanDiscogsArtistName('Various')).toBe('Various Artists')
+  })
+
+  it('leaves a name that is already spelled out alone', () => {
+    expect(cleanDiscogsArtistName('Various Artists')).toBe('Various Artists')
+  })
+
+  // "Various Production" is a real artist, so this must match the whole name and not
+  // merely start with it.
+  it('does not rewrite a real artist whose name begins with Various', () => {
+    expect(cleanDiscogsArtistName('Various Production')).toBe('Various Production')
+  })
+
+  it('still strips the suffix before recognising the placeholder', () => {
+    expect(cleanDiscogsArtistName('Various (3)')).toBe('Various Artists')
+  })
 })
 
 describe('guessFormatName', () => {

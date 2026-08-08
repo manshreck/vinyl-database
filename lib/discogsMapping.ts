@@ -2,9 +2,25 @@ import type { DiscogsReleaseDetail } from './discogs'
 
 const DISCOGS_ARTIST_SUFFIX = /\s\(\d+\)$/
 
-/** Strips Discogs' numeric disambiguation suffix from artist names, e.g. "Genesis (2)" → "Genesis". */
+/**
+ * Discogs files every compilation under the artist name "Various". Sleeves, shop
+ * dividers and every other catalogue say "Various Artists", so that is what this
+ * collection stores.
+ *
+ * Matched exactly rather than by prefix: "Various Production" is a real artist, and
+ * so is "Various Artists" itself on some releases — the latter already reads
+ * correctly and passes through untouched.
+ */
+const DISCOGS_COMPILATION_ARTIST = 'various'
+const COMPILATION_ARTIST = 'Various Artists'
+
+/**
+ * Strips Discogs' numeric disambiguation suffix from artist names, e.g.
+ * "Genesis (2)" → "Genesis", and spells out its compilation placeholder.
+ */
 export function cleanDiscogsArtistName(name: string): string {
-  return name.replace(DISCOGS_ARTIST_SUFFIX, '').trim()
+  const cleaned = name.replace(DISCOGS_ARTIST_SUFFIX, '').trim()
+  return cleaned.toLowerCase() === DISCOGS_COMPILATION_ARTIST ? COMPILATION_ARTIST : cleaned
 }
 
 const KNOWN_FORMAT_NAMES = ['7"', '10"', '12"', 'LP', 'Box Set', 'Cassette', 'CD']
