@@ -726,6 +726,30 @@ Prisma's `Decimal` type is a custom object (not a native JS number) and cannot c
 ### `$transaction` for release updates
 `updateRelease` wraps its work in `prisma.$transaction` so that artist name updates and genre replacement are atomic. Without the transaction, a failure partway through (e.g., network drop between the artist update and the genre replacement) could leave the release in an inconsistent state.
 
+### Display strings are identity, and normalization decides who is who
+
+Several entities are identified by a human-readable string rather than a stable id. This is deliberate — it keeps the schema legible, makes manual entry work without a lookup step, and for a personal collection it is almost always right. But it means **the normalization rules are the identity rules**, and they fail in two opposite directions: too aggressive merges things that differ, too literal forks things that are the same.
+
+Where it applies:
+
+| Identity | Enforced by | Matched by |
+|---|---|---|
+| `artists.name` | `uq_artist_name` | exact match in `resolveReleaseId`; case-insensitive in release matching |
+| `releases` | *(no constraint)* | `buildNewReleaseWhere` — case-insensitive `title` **plus** an artist match |
+| `genres.name`, `formats.name` | `uq_genre_name`, `uq_format_name` | `normalizeGenre` (lowercase, strip non-alphanumerics); `guessFormatName` (case-insensitive equality) |
+
+**Artists — merging.** `cleanDiscogsArtistName` strips Discogs' `(N)` suffix, which is *precisely* Discogs' disambiguator for identically-named artists. `Genesis (2)` becomes `Genesis` and lands on the same row as the famous one; `Various Artists (2)` would land on the compilation placeholder. Stripping is still right — `Genesis (2)` is not what the sleeve says — but it discards the only thing distinguishing them, and `uq_artist_name` then guarantees they share a row. The symptom is one artist holding two artists' releases. It is visible, it is not data loss, and it is repaired by renaming the artist on one release.
+
+**Releases — forking.** Matching on case-insensitive title + artist is what stopped every Discogs add forking a duplicate `Release` (Discogs never supplies our internal id). It fixed the common case and left the near-miss: `Vol. 2` vs `Vol 2`, or a curly apostrophe against a straight one, are different strings and therefore different releases. The reverse also holds — a genuine re-recording sharing its title with the original collapses into one release.
+
+**The escape hatch, if this ever becomes painful:** Discogs supplies stable numeric ids for both artists and releases, and we store neither. Keying on `discogs_artist_id` would let two artists share a display name. Note that it is not a small change — the point is to permit duplicate names, so it requires *dropping* `uq_artist_name`, and that constraint is exactly what `findArtistNameConflict` in `lib/services/releases.ts` exists to defend. It touches intake, the rename flow, and the schema together.
+
+**The comparison worth studying:** `users.email` in the control plane is also a string identity, against a plain `UNIQUE` column that would happily store `A@b.com` and `a@b.com` as two accounts. It works because `lib/services/accounts.ts` normalizes with `trim().toLowerCase()` where user-typed email *enters* — `registerUser` and `authenticate`.
+
+But look at the other two call sites. `changePassword` and `deleteAccount` pass their email to `findUserByEmail` **unnormalized**. They are correct today only because their email comes from the session, which was canonicalized on the way in. Nothing in a type or a signature says so; it holds by convention, and a future caller passing user-typed text into either one would silently fail to find an account that plainly exists.
+
+That is the general shape of the hazard, and the reason to state the rule as: **when identity is a string, give it one named normalization function and route every read and write through it** — rather than normalizing at the call sites you happen to be looking at. `cleanDiscogsArtistName` is this app's example of doing that well; it is the single place a Discogs artist name is canonicalized, which is why adding the "Various" rule required exactly one edit.
+
 ---
 
 ## 8. Extensibility
