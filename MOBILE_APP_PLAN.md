@@ -12,7 +12,7 @@ behaviour is unchanged throughout, as intended.
 |---|---|---|
 | 1 — service extraction | **Done** | `efc82cd`, `dd47c8f` |
 | 2 — bearer transport | **Done** | `606af93` (+ `cce6223`, a deadlock the schema change introduced) |
-| 3 — the API | **Step 1 of 6 done** — auth endpoint retrofitted to the D8 envelope (`3ff59f6`). Next: `GET /api/v1/pressings`. `zod` is not yet a dependency | `2b51f19`, `3ff59f6` |
+| 3 — the API | **Steps 1–2 (server side) done** — auth retrofitted to the D8 envelope, `GET /api/v1/pressings` shipped with the D5 version counter. Next: the Expo skeleton against it, then `GET /api/v1/wishlist`. `zod` is still not a dependency: neither endpoint so far takes input | `2b51f19`, `3ff59f6`, this commit |
 | 4 — monorepo + shared package | Not started; deliberately deferred until the screens stop moving | — |
 | 5 — the app | Not started | — |
 | 6 — iOS + polish | Not started | — |
@@ -22,14 +22,14 @@ session cookie with per-transport lifetimes (`sessions.origin`), `POST`/`DELETE`
 /api/v1/auth/session`, and `lib/apiError.ts` carrying the D8 envelope.
 
 **Decisions settled:** D1 (Expo / React Native), D2 (REST + zod), D4 (auth transport
-& lifetime — implemented), D6 (compatibility stance — revised after review; see the
+& lifetime — implemented), D5 (read-through cache, with a trigger-maintained version
+counter — implemented), D6 (compatibility stance — revised after review; see the
 entry), D8 (error envelope).
 
 **Decisions still open:** D3 (repo layout — blocks Phase 4; D1 makes the monorepo the
-frontrunner), D5 (offline scope — blocks Phase 5, and shapes whether `GET
-/api/v1/pressings` returns a cache-shaped payload), D7 (v1 feature cut — already used
-to cut §5, but still written as a recommendation), D9 (mobile e2e tooling — D1
-narrows this to the React Native ecosystem).
+frontrunner), D7 (v1 feature cut — already used to cut §5, but still written as a
+recommendation), D9 (mobile e2e tooling — D1 narrows this to the React Native
+ecosystem).
 
 §5 was rewritten after an API design review against the `swe-api` rules; roughly a
 third of the originally planned surface was cut. Read §5 and D6 before adding an
@@ -215,13 +215,72 @@ all authenticate themselves and return 401 JSON, so this removed redundancy rath
 than a check, and a redirect to an HTML page was never a useful answer for a
 programmatic caller anyway.
 
-### D5. Offline scope — blocks Phase 5
+### D5. Offline scope — ~~blocks Phase 5~~ **DECIDED: read-through cache**
 
 | Level | Cost | Verdict |
 |---|---|---|
-| Online-only | none | Acceptable floor |
-| **Read-through cache** (recommended) | small | The record-store use case — "do I own this?" with one bar of signal — is the whole point of mobile; cache the last-fetched collection, serve it stale with a banner when offline |
+| Online-only | none | Acceptable floor, rejected: it kills the record-store use case, which is why mobile exists |
+| **Read-through cache** ← chosen | small | Cache the last-fetched collection, serve it stale with an "as of" marker when offline |
 | Full offline CRUD + sync | very large (conflicts, queues, merge UX) | **Out of scope.** Revisit only with evidence of need |
+
+The whole collection measures **142 kB uncompressed** (234 pressings, every field),
+roughly 30 kB gzipped — less than one cover image. That removes the only real argument
+against caching all of it, and it is why there is no delta protocol: on any change the
+client replaces the whole cache, which cannot drift the way a delta can.
+
+#### Staleness: a version counter, not a timestamp
+
+The source of truth is the database; the app and the web UI are both views of it. When
+either changes state, any cached view is stale and must find out **soon** — not on
+some arbitrary expiry. (Note the cache has no natural TTL of its own; the 30 days
+elsewhere in this plan is the *session* lifetime from D4, a different thing.)
+
+`max(updated_at)` cannot do this job. A deleted row leaves no timestamp behind, and the
+motivating case is exactly a deletion: a wishlist entry becoming a pressing is
+`pressing.create` plus `wishlistItem.delete` in one transaction, so a timestamp check
+would see the arrival and never the departure.
+
+So the tenant schema carries a single-row **monotonic counter**, `collection_version`,
+bumped by `AFTER INSERT/UPDATE/DELETE/TRUNCATE` statement triggers on every data table
+(`prisma/tenant-triggers.sql`):
+
+- **Triggers, not a bump in each service.** A service function can be forgotten by
+  whoever writes the next one, and that failure is silent — a client serves stale data
+  and nothing errors. Triggers also catch writes from the web app, the API, a
+  migration or psql alike. Same reasoning as `normalizeEmail` at the storage boundary.
+- **Statement-level, not row-level.** One bump per statement however many rows it
+  touched. The trade: a statement matching zero rows still bumps, so a client can
+  occasionally refetch when nothing changed. That is the safe direction — a spurious
+  refresh costs one request; a missed change serves wrong data.
+- **Exposed as an HTTP `ETag`**, so revalidation needs no extra endpoint: the client
+  sends `If-None-Match` and gets `304` (~200 bytes) or a fresh payload.
+- **Opaque to clients.** Compare for equality only. Never order it or do arithmetic
+  on it — that keeps the scheme changeable.
+- **Not exported.** It is derived state rather than the account's data, and restoring
+  rows fires the triggers and recomputes it anyway. `TABLES_DELIBERATELY_NOT_EXPORTED`
+  in `lib/exportTenant.ts` records that so the export guard still forces a decision
+  about any *future* table.
+
+#### Sync policy: validate often, never "force"
+
+The client revalidates at app launch, on return to foreground, on pull-to-refresh, and
+immediately after any mutation it made. Each costs a `304` when nothing has changed, so
+there is no scheduled sync to tune and no reason for a heavyweight "force refresh"
+button beyond pull-to-refresh.
+
+Surfacing: when online, refresh silently — it is the same person's own change, and
+announcing it is noise. Show the "as of <time>" marker only when serving a cached copy
+offline, which is the genuinely ambiguous case.
+
+**Accepted limitation:** a cache can be wrong if the collection changed since the last
+successful revalidation. The user made that change themselves, and the marker says how
+old the copy is.
+
+**Known residual risk, recorded rather than solved:** the counter restarts if a schema
+is restored from backup, so a value could in principle be reused with different data
+behind it. That needs a restore, several hundred subsequent mutations, and a client
+that never successfully revalidated in between. Not worth engineering against now;
+if it ever matters, seeding the counter from epoch seconds removes it.
 
 ### D6. API compatibility stance — blocks Phase 3
 
@@ -320,8 +379,9 @@ Each phase leaves `main` shippable; web behavior is unchanged through Phase 4.
   until an install exists — so build each endpoint against the screen that needs it:
 
   1. ~~**Retrofit the auth endpoint to the D8 envelope**~~ — **done** (`3ff59f6`).
-  2. **← next.** `GET /api/v1/pressings` → Expo skeleton, login, collection browse.
-     Its shape depends on D5: a cache-shaped payload or a plain list.
+  2. `GET /api/v1/pressings` — **server side done**; cache-shaped per D5, whole
+     collection with `ETag` revalidation. **← next: the Expo skeleton, login and
+     collection browse against it.**
   3. `GET /api/v1/wishlist` → wishlist screen.
   4. `GET /api/v1/discogs/search` + `/releases/:id` → barcode scan and add-flow prefill.
   5. `POST /api/v1/pressings` with the `409` dance → the add flow and duplicate dialogs.

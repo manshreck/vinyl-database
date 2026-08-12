@@ -26,8 +26,8 @@ model Genre {
 }
 
 model Format {
-  formatId      Int             @id @default(autoincrement()) @map("format_id")
-  name          String          @unique(map: "uq_format_name") @db.VarChar(100)
+  formatId      Int            @id @default(autoincrement()) @map("format_id")
+  name          String         @unique(map: "uq_format_name") @db.VarChar(100)
   description   String?
   pressings     Pressing[]
   wishlistItems WishlistItem[]
@@ -138,7 +138,20 @@ enum ConditionGrade {
   VG_PLUS  @map("VG+")
   NM
   M
-  S  // Sealed
+  S // Sealed
 
   @@map("condition_grade")
+}
+
+/// Single-row change counter for the whole tenant, bumped by database triggers on
+/// every mutation (see prisma/tenant-triggers.sql). Clients cache the collection and
+/// compare this to know whether their copy is stale — timestamps cannot serve here,
+/// because a deleted row leaves no `updated_at` behind, and a wishlist entry becoming
+/// a pressing is half a delete.
+model CollectionVersion {
+  id        Boolean  @id @default(true)
+  version   BigInt   @default(1)
+  changedAt DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  @@map("collection_version")
 }

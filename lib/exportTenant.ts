@@ -52,6 +52,19 @@ const TABLES_IN_RESTORE_ORDER = [
   'wishlist_items',
 ]
 
+/**
+ * Tables the guard below should not complain about, each for a stated reason. This
+ * list exists so the alarm forces a *decision* rather than forcing inclusion — an
+ * exclusion nobody can justify is exactly what it is meant to catch.
+ *
+ * - `collection_version` is derived state, not the account's data: a counter the
+ *   database maintains by trigger so clients can tell whether a cached copy is stale
+ *   (MOBILE_APP_PLAN D5). Restoring it would also be actively unhelpful, since
+ *   restoring rows fires the triggers and recomputes it anyway. A restored schema
+ *   self-seeds from its first mutation.
+ */
+const TABLES_DELIBERATELY_NOT_EXPORTED = ['collection_version']
+
 /** SERIAL primary keys, whose sequences must be advanced past the restored rows. */
 const SERIAL_KEYS: Array<[table: string, column: string]> = [
   ['artists', 'artist_id'],
@@ -124,12 +137,15 @@ function header(generatedAt: Date): string {
  * the omission only surfaces when someone finally restores it.
  */
 function assertEveryTableIsExported(actualTables: string[]): void {
-  const unlisted = actualTables.filter((t) => !TABLES_IN_RESTORE_ORDER.includes(t))
+  const unlisted = actualTables.filter(
+    (t) => !TABLES_IN_RESTORE_ORDER.includes(t) && !TABLES_DELIBERATELY_NOT_EXPORTED.includes(t)
+  )
   if (unlisted.length > 0) {
     throw new Error(
       `Export is missing table(s) that exist in the database: ${unlisted.join(', ')}. ` +
-        'Add them to TABLES_IN_RESTORE_ORDER in lib/exportTenant.ts, in foreign-key order, ' +
-        'or every export will silently omit them.'
+        'Add them to TABLES_IN_RESTORE_ORDER in lib/exportTenant.ts, in foreign-key order — ' +
+        'or, if they genuinely should not be exported, to TABLES_DELIBERATELY_NOT_EXPORTED ' +
+        'with a reason. Leaving them in neither list means every export silently omits them.'
     )
   }
 }

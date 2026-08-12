@@ -104,6 +104,15 @@ CREATE TABLE "wishlist_items" (
     CONSTRAINT "wishlist_items_pkey" PRIMARY KEY ("wishlist_item_id")
 );
 
+-- CreateTable
+CREATE TABLE "collection_version" (
+    "id" BOOLEAN NOT NULL DEFAULT true,
+    "version" BIGINT NOT NULL DEFAULT 1,
+    "changed_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "collection_version_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uq_artist_name" ON "artists"("name");
 

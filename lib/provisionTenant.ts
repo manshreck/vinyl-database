@@ -18,6 +18,15 @@ const TENANT_SCHEMA_SQL = readFileSync(
   'utf8'
 )
 
+/**
+ * Triggers, kept separate because `prisma migrate diff` emits tables and never these:
+ * regenerating tenant-schema.sql would silently drop them if they lived there.
+ */
+const TENANT_TRIGGERS_SQL = readFileSync(
+  join(process.cwd(), 'prisma/tenant-triggers.sql'),
+  'utf8'
+)
+
 export function generateSchemaName(): string {
   return `vinyl_user_${randomBytes(6).toString('hex')}`
 }
@@ -39,6 +48,9 @@ async function seedSchema(schema: string) {
   await client.connect()
   try {
     await client.query(TENANT_SCHEMA_SQL)
+    // After the tables exist, and before the reference-data inserts below — which then
+    // become the first bumps the counter records, so a fresh tenant starts consistent.
+    await client.query(TENANT_TRIGGERS_SQL)
 
     for (const format of FORMATS) {
       await client.query(

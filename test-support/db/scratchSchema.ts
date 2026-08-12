@@ -26,6 +26,7 @@ const SCRATCH_PREFIX = 'vinyl_test_'
 const SCRATCH_NAME_PATTERN = /^vinyl_test_[a-f0-9]{12}$/
 
 const TENANT_SCHEMA_SQL = readFileSync(join(process.cwd(), 'prisma/tenant-schema.sql'), 'utf8')
+const TENANT_TRIGGERS_SQL = readFileSync(join(process.cwd(), 'prisma/tenant-triggers.sql'), 'utf8')
 
 function assertScratchName(name: string): void {
   if (!SCRATCH_NAME_PATTERN.test(name)) {
@@ -124,9 +125,15 @@ export async function runSqlOnScratchSchema(name: string, sql: string): Promise<
   }
 }
 
-/** Applies the same tenant DDL provisionTenant.ts applies to a real tenant schema. */
+/**
+ * Applies the same tenant DDL provisionTenant.ts applies to a real tenant schema —
+ * including the triggers, which `prisma migrate diff` never generates. A scratch
+ * schema without them would silently lack the change counter, and every test of
+ * cache invalidation would pass against a schema production does not have.
+ */
 export async function applyTenantSchema(name: string): Promise<void> {
   await runSqlOnScratchSchema(name, TENANT_SCHEMA_SQL)
+  await runSqlOnScratchSchema(name, TENANT_TRIGGERS_SQL)
 }
 
 /** A real generated PrismaClient scoped to a scratch schema, via the exact same adapter construction lib/prisma.ts uses in production. */
