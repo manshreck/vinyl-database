@@ -1,10 +1,39 @@
 # Plan: a mobile app alongside the web interface
 
-Status: **plan only — nothing here has been executed.** No code changes accompany
-this document.
-
 Target: an Android app running against the local backend first, iOS later, with the
 web interface continuing unchanged throughout.
+
+## Status — 2026-08-12
+
+Phases 1 and 2 are **implemented and merged**; Phase 3 is **in progress**. Web
+behaviour is unchanged throughout, as intended.
+
+| Phase | State | Commits |
+|---|---|---|
+| 1 — service extraction | **Done** | `efc82cd`, `dd47c8f` |
+| 2 — bearer transport | **Done** | `606af93` (+ `cce6223`, a deadlock the schema change introduced) |
+| 3 — the API | **Step 1 of 6 done** — auth endpoint retrofitted to the D8 envelope (`3ff59f6`). Next: `GET /api/v1/pressings`. `zod` is not yet a dependency | `2b51f19`, `3ff59f6` |
+| 4 — monorepo + shared package | Not started; deliberately deferred until the screens stop moving | — |
+| 5 — the app | Not started | — |
+| 6 — iOS + polish | Not started | — |
+
+**Shipped so far:** `lib/services/*` (transport-free), bearer tokens alongside the
+session cookie with per-transport lifetimes (`sessions.origin`), `POST`/`DELETE`/`GET
+/api/v1/auth/session`, and `lib/apiError.ts` carrying the D8 envelope.
+
+**Decisions settled:** D2 (REST + zod), D4 (auth transport & lifetime — implemented),
+D6 (compatibility stance — revised after review; see the entry), D8 (error envelope).
+
+**Decisions still open:** D1 (mobile framework — recommended, not decided; D6's
+reasoning leans on Expo's OTA updates, so settling it confirms that), D3 (repo
+layout — blocks Phase 4), D5 (offline scope — blocks Phase 5, and shapes whether
+`GET /api/v1/pressings` returns a cache-shaped payload), D7 (v1 feature cut — already
+used to cut §5, but still written as a recommendation), D9 (mobile e2e tooling).
+
+§5 was rewritten after an API design review against the `swe-api` rules; roughly a
+third of the originally planned surface was cut. Read §5 and D6 before adding an
+endpoint — several entries were removed on purpose and re-adding one should be a
+decision, not a reflex.
 
 ## 1. The governing insight: this is additive layering, not a rewrite
 
@@ -267,8 +296,9 @@ Each phase leaves `main` shippable; web behavior is unchanged through Phase 4.
   before implementing it, and D6 establishes that the contract is not load-bearing
   until an install exists — so build each endpoint against the screen that needs it:
 
-  1. **Retrofit the auth endpoint to the D8 envelope** (see D8). Before anything new.
-  2. `GET /api/v1/pressings` → Expo skeleton, login, collection browse.
+  1. ~~**Retrofit the auth endpoint to the D8 envelope**~~ — **done** (`3ff59f6`).
+  2. **← next.** `GET /api/v1/pressings` → Expo skeleton, login, collection browse.
+     Its shape depends on D5: a cache-shaped payload or a plain list.
   3. `GET /api/v1/wishlist` → wishlist screen.
   4. `GET /api/v1/discogs/search` + `/releases/:id` → barcode scan and add-flow prefill.
   5. `POST /api/v1/pressings` with the `409` dance → the add flow and duplicate dialogs.
