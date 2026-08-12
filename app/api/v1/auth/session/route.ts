@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/apiError'
 import { authenticate } from '@/lib/services/accounts'
 import { getSession, issueSession, revokeSessionToken } from '@/lib/session'
 import { NextRequest, NextResponse } from 'next/server'
@@ -22,22 +23,24 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Request body must be JSON.' }, { status: 400 })
+    return apiError(400, 'invalid_request_body', 'Request body must be JSON.')
   }
 
   const { email, password } = body
   if (typeof email !== 'string' || typeof password !== 'string') {
-    return NextResponse.json(
-      { error: 'Both "email" and "password" are required and must be strings.' },
-      { status: 400 }
+    return apiError(
+      400,
+      'invalid_request',
+      'Both "email" and "password" are required and must be strings.'
     )
   }
 
   const result = await authenticate(email, password)
   if (result.status === 'invalid_credentials') {
     // Same message whether the address is unknown or the password is wrong: telling
-    // them apart would turn this endpoint into an account-enumeration oracle.
-    return NextResponse.json({ error: 'Incorrect email or password.' }, { status: 401 })
+    // them apart would turn this endpoint into an account-enumeration oracle. The
+    // single `invalid_credentials` code keeps that true for machines as well.
+    return apiError(401, 'invalid_credentials', 'Incorrect email or password.')
   }
 
   const { token, expiresAt } = await issueSession(result.userId, 'mobile')
@@ -50,9 +53,10 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const match = /^Bearer +(\S+)$/i.exec(request.headers.get('authorization')?.trim() ?? '')
   if (!match) {
-    return NextResponse.json(
-      { error: 'Provide the session token as "Authorization: Bearer <token>".' },
-      { status: 401 }
+    return apiError(
+      401,
+      'missing_bearer_token',
+      'Provide the session token as "Authorization: Bearer <token>".'
     )
   }
 
@@ -67,7 +71,7 @@ export async function DELETE(request: NextRequest) {
 export async function GET() {
   const session = await getSession()
   if (!session) {
-    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 })
+    return apiError(401, 'not_authenticated', 'Not signed in.')
   }
 
   return NextResponse.json({

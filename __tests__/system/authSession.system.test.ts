@@ -130,8 +130,70 @@ describe('auth session route assembling real session + controlDb (system)', () =
     expect(response.status).toBe(401)
     const body = await response.json()
     expect(body.token).toBeUndefined()
-    // The same message an unknown address gets, so this cannot enumerate accounts.
-    expect(body.error).toBe('Incorrect email or password.')
+    // Asserting the code, not the prose. The message is allowed to be reworded; the
+    // code is the part clients branch on and therefore the part that is contract.
+    expect(body.error.code).toBe('invalid_credentials')
+  })
+
+  it('reports an unknown address identically to a wrong password', async () => {
+    const response = await route.POST(
+      postJson({ email: 'nobody@vinyl-test.local', password: 'wrongpassword' })
+    )
+    const body = await response.json()
+
+    // Same status, same code, same message: distinguishing them would make this
+    // endpoint an account-enumeration oracle, and a distinct *code* would leak it to
+    // machines even if the prose matched.
+    expect(response.status).toBe(401)
+    expect(body.error.code).toBe('invalid_credentials')
+    expect(body.error.message).toBe('Incorrect email or password.')
+  })
+
+  // The D8 envelope is what mobile compiles its error handling against, so its shape
+  // is pinned across every failure path rather than at one convenient example.
+  it('returns the D8 error envelope from every failure path', async () => {
+    const cases: Array<[Promise<Response>, number, string]> = [
+      [
+        Promise.resolve(route.POST(postJson({ email: EMAIL }))),
+        400,
+        'invalid_request',
+      ],
+      [
+        Promise.resolve(
+          route.POST(
+            new NextRequest('http://localhost/api/v1/auth/session', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: 'not json',
+            })
+          )
+        ),
+        400,
+        'invalid_request_body',
+      ],
+      [
+        Promise.resolve(
+          route.DELETE(
+            new NextRequest('http://localhost/api/v1/auth/session', { method: 'DELETE' })
+          )
+        ),
+        401,
+        'missing_bearer_token',
+      ],
+      [Promise.resolve(route.GET()), 401, 'not_authenticated'],
+    ]
+
+    for (const [pending, status, code] of cases) {
+      const response = await pending
+      const body = await response.json()
+
+      expect(response.status).toBe(status)
+      expect(body.error.code).toBe(code)
+      expect(typeof body.error.message).toBe('string')
+      expect(body.error.message.length).toBeGreaterThan(0)
+      // No bare `error` string survives anywhere — that was the pre-D8 shape.
+      expect(typeof body.error).toBe('object')
+    }
   })
 
   it('renewal moves expires_at in the database, not just in memory', async () => {

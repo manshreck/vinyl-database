@@ -171,12 +171,34 @@ programmatic caller anyway.
 | **Read-through cache** (recommended) | small | The record-store use case — "do I own this?" with one bar of signal — is the whole point of mobile; cache the last-fetched collection, serve it stale with a banner when offline |
 | Full offline CRUD + sync | very large (conflicts, queues, merge UX) | **Out of scope.** Revisit only with evidence of need |
 
-### D6. API compatibility stance — blocks Phase 3, binds forever after
+### D6. API compatibility stance — blocks Phase 3
 
-The moment a mobile build ships anywhere (even one test device), the API has a
-client that updates out-of-band. Version the path (`/api/v1/`), make changes
-additive-only within v1, and treat removal as a v2 event. Hyrum's Law applies with
-teeth: an installed app is the consumer you cannot fix in the same commit.
+**Revised.** The first draft said an installed build binds the API forever and that
+removal is a v2 event. That over-rotates, and it contradicts D1, which credits Expo's
+OTA updates with shrinking exactly this problem. Both cannot hold at full strength.
+
+Applying the ownership test honestly: we *cannot* change both sides in one commit, but
+we very much *can* make the caller upgrade — it is our own phone. That is a
+**reachability** problem, not an ownership one, and the discipline scales to how long
+a stale install survives and what it does while stale:
+
+| Surface | Stance |
+|---|---|
+| Response shapes a stale build reads offline — the cached collection, the error envelope, the `409` body | The real commitment. A client that cannot reach us cannot be told we changed |
+| Interactive mutations and Discogs proxies | Coordinated two-step change is fine: ship the server, ship the client |
+
+So: keep the `/api/v1/` path (cheap, and right if this ever grows an audience), keep
+additive-as-default, and drop "removal is a v2 event" in favour of a coordinated
+upgrade for as long as every install sits on a device we control.
+
+**Stability starts at the first install on a device we do not own.** Until then this
+is `0.x` semantics wearing a `v1` path — which is fine, and worth naming, because the
+moment it stops being true should be a date somebody can point at. From that date the
+full versioning discipline applies: major only for breaking changes, previous version
+running for a published window, notice before the change, migration path provided.
+
+Hyrum's Law still applies to the offline-consumed shapes with teeth. It does not apply
+equally to all fourteen endpoints, which is what the first draft got wrong.
 
 ### D7. Mobile v1 feature cut — blocks Phase 5
 
@@ -188,11 +210,36 @@ later), admin, registration, release editing.
 
 ### D8. API error envelope — blocks Phase 3
 
-Adopt one JSON error shape from the first endpoint: machine-readable `code`,
-human `message` written for the end user, `retryable` boolean, and optional
-`action` (e.g. `update_token`). The `DiscogsApiError` flags (`unauthorized`,
-`rateLimited`) already model this — the envelope is their generalization, and the
-mobile UI branches on `code`, never on prose.
+One JSON error shape everywhere:
+
+```json
+{ "error": { "code": "invalid_credentials",
+             "message": "Incorrect email or password.",
+             "action": "update_token" } }
+```
+
+`code` is machine-readable and stable; `message` is written for the end user (see
+swe-error-messages); `action` is optional and names an affordance the client can
+offer. The `DiscogsApiError` flags (`unauthorized`, `rateLimited`) already model
+this — the envelope is their generalization, and the mobile UI branches on `code`,
+never on prose.
+
+**Dropped from the first draft: a per-error `retryable` boolean.** It reads as
+obviously useful and is a promise kept forever for no gain. It is also ambiguous — is
+a `401` retryable? After re-authenticating, yes; immediately, no — so the field would
+have to encode *when*, which is the client's decision anyway. Retryability is derivable
+from status class (`5xx`, `429`) on the client. The skill's rule: anything you specify,
+you must keep.
+
+`code` values are themselves published contract. Adding one is additive; renaming or
+removing one is breaking.
+
+**This was not honoured by the first endpoint that shipped.** `POST/DELETE/GET
+/api/v1/auth/session` (commit `606af93`) returns a bare `{ "error": "..." }` string
+from all five failure paths, and a system test pins that shape. Nothing consumes it
+yet, so the fix is one route file and one test; after the Expo login screen is built
+it is a breaking change to the flow that gates everything else. **Retrofitting it is
+the first task of Phase 3, before any new endpoint.**
 
 ### D9. Mobile e2e tooling — blocks Phase 6 verification
 
@@ -213,37 +260,120 @@ Each phase leaves `main` shippable; web behavior is unchanged through Phase 4.
   (logout), `GET` (whoami); `sessions.origin` plus the per-transport lifetime policy
   from D4; `/api` excluded from `proxy.ts`. Note: the token path is inherently
   CSRF-immune — no cookie, no cross-site ambient credential.
-- **Phase 3 — the API.** `/api/v1/*` route handlers over the services (surface
-  inventory in §5), zod validation, the D8 envelope, pagination/filter parity with
-  the pages. **API contract tests** at the system layer: real handlers, scratch
-  schemas, asserting the JSON shapes mobile will compile against.
-- **Phase 4 — monorepo + shared package** (D3). Mechanical; done when the API is
-  stable enough to type.
-- **Phase 5 — the app.** Expo skeleton → login → read-only collection browsing
-  against the LAN backend → wishlist → Discogs search/add with duplicate dialogs →
-  barcode scan. Read-cache per D5.
+- **Phases 3 and 5 — the API and the app, interleaved.** The original plan built all
+  of §5, then typed it in Phase 4, then wrote the client in Phase 5. That ordering is
+  precisely how a surface gets derived from services instead of screens, which is the
+  mistake §5 has now been cut to undo. Bloch's rule is to write code against an API
+  before implementing it, and D6 establishes that the contract is not load-bearing
+  until an install exists — so build each endpoint against the screen that needs it:
+
+  1. **Retrofit the auth endpoint to the D8 envelope** (see D8). Before anything new.
+  2. `GET /api/v1/pressings` → Expo skeleton, login, collection browse.
+  3. `GET /api/v1/wishlist` → wishlist screen.
+  4. `GET /api/v1/discogs/search` + `/releases/:id` → barcode scan and add-flow prefill.
+  5. `POST /api/v1/pressings` with the `409` dance → the add flow and duplicate dialogs.
+  6. The two judgment-call endpoints, if their screens turn out to want them.
+
+  Throughout: zod at the boundary, the D8 envelope from every handler, the §5.1
+  contract obligations, and **API contract tests** at the system layer — real
+  handlers, scratch schemas, asserting the JSON shapes mobile compiles against.
+- **Phase 4 — monorepo + shared package** (D3). Mechanical. Do it when the screens
+  stop moving and the shapes are worth freezing, not before.
 - **Phase 6 — iOS + polish.** Same codebase via EAS build (requires the $99/yr
   Apple developer account); Maestro flows for the journeys; share-sheet export if
   wanted.
 
 ## 5. API surface inventory
 
-| Current | v1 endpoint |
+Every row below answers *who calls this, for what, and what breaks if it is absent* —
+and rows that could not answer are cut. An earlier draft of this table derived the
+surface from the web pages and the service functions, which is how a schema gets
+published by accident. **Cut is not "never": each deferred row is additive later at
+near-zero cost, which is the whole reason to leave it out now.**
+
+### v1 — ships in Phase 3
+
+| Caller / use case | Endpoint |
 |---|---|
-| `loginUser` / `logoutUser` | `POST` / `DELETE /api/v1/auth/session` |
-| pressings page query | `GET /api/v1/pressings?artistId&formatId&genreId&sort&page` |
-| pressing detail page | `GET /api/v1/pressings/:id` |
-| `createPressing` (incl. duplicate dance) | `POST /api/v1/pressings` → `201`, or `409` carrying `ReleaseHoldings`; `confirmDuplicate`/`removeFromWishlist` in the body |
-| `updatePressing` / `deletePressing` | `PATCH` / `DELETE /api/v1/pressings/:id` |
-| wishlist page + CRUD + `addWishlistItemToCollection` | `/api/v1/wishlist...`, `POST /api/v1/wishlist/:id/add-to-collection` |
-| `updateRelease` | `PATCH /api/v1/releases/:id` |
-| existing search routes | move under `/api/v1/`, originals kept as thin aliases until web migrates its fetch calls |
-| Discogs search/detail pages | `GET /api/v1/discogs/search?q=` **or `?barcode=`**, `GET /api/v1/discogs/releases/:id` |
-| summary counts | `GET /api/v1/summary` |
-| session info for app boot | `GET /api/v1/me` |
+| App login, logout, boot-time token check | `POST` / `DELETE` / `GET /api/v1/auth/session` |
+| Collection browse + D5 offline cache | `GET /api/v1/pressings` — whole collection, counts in the envelope |
+| Pressing detail, deep link, single refresh | `GET /api/v1/pressings/:id` |
+| Add a record, incl. the duplicate dance | `POST /api/v1/pressings` → `201`, or `409` carrying `ReleaseHoldings` |
+| Wishlist browse | `GET /api/v1/wishlist` |
+| Barcode scan and title search | `GET /api/v1/discogs/search?q=` **or `?barcode=`** |
+| Add-flow prefill | `GET /api/v1/discogs/releases/:id` |
+
+Judgment calls — decide from the screen when Phase 5 reaches it, not from the service:
+
+| Use case | Endpoint | Note |
+|---|---|---|
+| "Scan it in the shop, want it later" | `POST /api/v1/wishlist` | D7 says wishlist *list* only; this is a genuine mobile flow |
+| "Bought the record I was hunting" | `POST /api/v1/wishlist/:id/add-to-collection` | Avoids re-entering pressing details — but `POST /pressings` already clears an identical wishlist entry transactionally, so not strictly required |
+
+### Deferred — not in v1
+
+| Endpoint | Why not |
+|---|---|
+| `PATCH` / `DELETE /api/v1/pressings/:id` | Editing is not in D7's feature cut. Also mis-specified: `updatePressing` replaces *every* field, which is `PUT` semantics — a `PATCH` omitting `notes` would null it. Redesign before exposing |
+| `PATCH` / `DELETE /api/v1/wishlist/:id` | Not in D7 |
+| `PATCH /api/v1/releases/:id` | D7 defers release editing outright. `UpdateReleaseInput` also carries `renames: Rename[]` — the web form's shape, not a resource contract |
+| `GET /api/v1/summary` | No caller of its own. The counts ride in the `GET /pressings` envelope; a client holding the cached list can also compute them |
+| `GET /api/v1/me` | Duplicate of `GET /api/v1/auth/session`, which already ships and returns the same fields. Two names for one concept |
+| Moving `/api/artists/search`, `/api/discogs/cover-image` under `/api/v1/` | Called only by web form components in this repo — one commit changes both sides, so they are *internal* interfaces needing no version ceremony. Mobile v1's add flow is Discogs-driven with no editing and needs neither |
+| `/api/releases/search` | Has no caller anywhere in the app; only its own test references it. Publishing it would promote dead code to a permanent commitment. Delete or leave, but do not version |
+
+**No thin aliases.** An earlier draft kept the original search routes alongside
+versioned copies "until web migrates". That doubles the surface — two URLs, both
+supported forever — to serve callers that already work. Internal routes stay internal
+and unversioned.
+
+**No `?page=`.** The earlier draft promised "pagination parity with the pages", which
+cannot exist: `app/pressings/page.tsx` loads the whole collection, sorts it in memory
+with `artistSortKey` (an app-level collation Postgres cannot reproduce — see
+DEVELOPER_GUIDE §7 on filing artists), then slices. Server-side offset paging would
+force the sort into SQL, which those rules forbid. D5's read-through cache wants the
+whole collection in one fetch anyway. Additive later if a screen ever demands it; the
+same goes for the `artistId` / `formatId` / `genreId` filters, which a client holding
+the full list can apply locally.
 
 The `409 + ReleaseHoldings` pattern is the existing confirm-dance made honest in
-HTTP: same shape, same semantics, one service underneath.
+HTTP: same shape, same semantics, one service underneath. Its contract needs three
+things written down that the code does not currently state — see §5.1.
+
+### 5.1 Contract obligations for Phase 3
+
+Settled before the endpoints are written, because each becomes contract on first
+install:
+
+- **`confirmDuplicate` means "proceed past whatever collides at execution time", not
+  "I accept the collision you showed me."** Holdings can change between the `409` and
+  the retry. Document it in exactly those words; tightening it (echo the observed
+  `releaseId`, re-`409` if holdings moved) is optional and probably unnecessary for a
+  single-user collection.
+- **A confirmed create is not idempotent.** If the response is lost and the client
+  retries, the bypass flag rides along and a second pressing is written — and
+  bad-signal-in-a-record-store is the stated environment. Either accept an
+  `Idempotency-Key` header on `POST /pressings` and `POST /wishlist/:id/add-to-collection`,
+  or publish the client rule ("re-`GET` before retrying a confirmed create").
+- **Money crosses as a decimal string**, never a JSON number. Output already behaves:
+  Prisma `Decimal` serializes to `"12.99"`. Note it *normalizes* — `0.10` becomes
+  `"0.1"` — so the contract is "normalized decimal string", or the boundary formats to
+  fixed precision on purpose. Input types are currently `number | null` and must become
+  strings at the API boundary.
+- **`purchaseDate` is date-only**: `"YYYY-MM-DD"`, not an ISO datetime, which invites
+  off-by-one drift across a phone's timezone.
+- **`recordCondition` / `sleeveCondition` are unvalidated today** — cast `as never`
+  into Prisma enums, with the web `<select>` as the only guard. Same defect class as
+  the `Number(null)` year-zero bug. zod owns them at the boundary and the accepted
+  values become published contract, so enumerate them deliberately.
+- **`404` vs `500`:** `updatePressing`/`deletePressing` throw Prisma `P2025` for a
+  missing id while `addWishlistItemToCollection` returns `not_found`. Handlers map
+  `P2025` to `404` uniformly, and every status code gets a documented postcondition.
+- **Tenant scoping is the authorization precondition.** Handlers obtain the Prisma
+  client from `session.databaseName`, never from anything client-supplied.
+  Schema-per-tenant makes BOLA structurally hard, but the invariant currently lives in
+  a code comment; Phase 3 adds a contract test that a valid token for tenant A cannot
+  address tenant B's ids.
 
 ## 6. Local development topology (Android phase)
 
