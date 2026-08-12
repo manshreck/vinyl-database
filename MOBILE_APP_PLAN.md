@@ -21,14 +21,15 @@ behaviour is unchanged throughout, as intended.
 session cookie with per-transport lifetimes (`sessions.origin`), `POST`/`DELETE`/`GET
 /api/v1/auth/session`, and `lib/apiError.ts` carrying the D8 envelope.
 
-**Decisions settled:** D2 (REST + zod), D4 (auth transport & lifetime — implemented),
-D6 (compatibility stance — revised after review; see the entry), D8 (error envelope).
+**Decisions settled:** D1 (Expo / React Native), D2 (REST + zod), D4 (auth transport
+& lifetime — implemented), D6 (compatibility stance — revised after review; see the
+entry), D8 (error envelope).
 
-**Decisions still open:** D1 (mobile framework — recommended, not decided; D6's
-reasoning leans on Expo's OTA updates, so settling it confirms that), D3 (repo
-layout — blocks Phase 4), D5 (offline scope — blocks Phase 5, and shapes whether
-`GET /api/v1/pressings` returns a cache-shaped payload), D7 (v1 feature cut — already
-used to cut §5, but still written as a recommendation), D9 (mobile e2e tooling).
+**Decisions still open:** D3 (repo layout — blocks Phase 4; D1 makes the monorepo the
+frontrunner), D5 (offline scope — blocks Phase 5, and shapes whether `GET
+/api/v1/pressings` returns a cache-shaped payload), D7 (v1 feature cut — already used
+to cut §5, but still written as a recommendation), D9 (mobile e2e tooling — D1
+narrows this to the React Native ecosystem).
 
 §5 was rewritten after an API design review against the `swe-api` rules; roughly a
 third of the originally planned surface was cut. Read §5 and D6 before adding an
@@ -99,18 +100,40 @@ exists exactly once.
 
 Each needs an answer before the phase that consumes it; recommendations included.
 
-### D1. Mobile framework — blocks Phase 5
+### D1. Mobile framework — ~~blocks Phase 5~~ **DECIDED: Expo / React Native**
 
 | Option | For | Against |
 |---|---|---|
-| **Expo / React Native** (recommended) | One TypeScript codebase for Android *and* iOS; shares types and pure domain logic with the backend via a workspace package; camera/barcode modules are mature; OTA updates shrink the versioning problem (D6) | A second app to maintain; native look requires effort |
+| **Expo / React Native** ← chosen | One TypeScript codebase for Android *and* iOS; shares types and pure domain logic with the backend via a workspace package; camera/barcode modules are mature; OTA updates shrink the versioning problem (D6) | A second app to maintain; native look requires effort |
 | Capacitor (web app in a shell) | Days of work, not weeks; zero duplicated UI | It *is* the web UI — no offline, webby feel, camera integration clunkier; iOS review can be hostile to thin wrappers |
 | PWA only | Nearly free — the responsive site installed to the home screen | Not what was asked; iOS PWA support is limited; no barcode-grade camera access |
 | Native Kotlin + Swift | Best-in-class feel | Two codebases, zero code sharing with the TS domain — unjustifiable solo |
 
-The stated Android-now-iOS-later path is precisely what Expo exists for. PWA is
-worth noting as a zero-cost stopgap while phases 1–4 land, since they are all
-backend work.
+The stated Android-now-iOS-later path is precisely what Expo exists for, and barcode
+scanning — the reason mobile exists at all (D7) — rules out the two cheap options on
+capability rather than taste.
+
+**What this settles elsewhere:**
+
+- **D6 is now sound rather than provisional.** Its revision argues that an installed
+  first-party build is a *reachability* problem rather than an ownership one, and
+  leans on out-of-band updates to say so. That reasoning required a framework with
+  OTA capability; Expo supplies it. Note the limit honestly: OTA ships JS, not native
+  modules, so a change requiring a new native build (a camera/barcode module bump, a
+  permissions change) is an app-store round trip and does **not** get the fast path.
+  The offline-consumed shapes stay the real commitment either way.
+- **D3 (repo layout) gets easier to call.** Expo's whole argument is sharing types and
+  pure domain logic with the backend, which is what the workspace package in the
+  monorepo option exists to carry. Deciding D1 this way makes "additive dirs" and "two
+  repos" markedly less attractive, though D3 is still formally open.
+- **D9 (mobile e2e tooling)** narrows to the React Native ecosystem — Maestro, as the
+  plan already suggests.
+- **Phase 6's cost is now known**: iOS via EAS build requires the $99/yr Apple
+  developer account. Android has no equivalent gate for local/sideloaded installs.
+
+The PWA remains available as a zero-cost stopgap while Phase 3 lands, since that is
+all backend work — the responsive site installed to a home screen, with no barcode
+scanning. Worth using to test the API from a phone before any Expo code exists.
 
 ### D2. API style — ~~blocks Phase 3~~ **DECIDED**
 
