@@ -266,6 +266,45 @@ If you don't have one, leave `DISCOGS_TOKEN` blank rather than filling in a plac
 npm run dev
 ```
 
+This is the form to use when you're working in a terminal you'll keep open: the server
+runs in the foreground, recompiles on save, and stops on Ctrl-C.
+
+### Keeping it running after the shell exits
+
+A foreground server is tied to the shell that started it. Close the terminal, end an SSH
+session, or let an agent's background task be torn down, and the server goes too — it
+receives SIGTERM along with the rest of its process group, however healthy it was. To
+start one that outlives its launcher:
+
+```bash
+mkdir -p .logs && nohup ./scripts/dev-with-diagnostics.sh > .logs/dev-stdout.log 2>&1 &
+```
+
+The `mkdir` isn't optional on a first run: `.logs/` is gitignored, so it doesn't exist in
+a fresh clone, and the shell sets up that redirect *before* the script gets a chance to
+create the directory itself. Without it the command fails with `no such file or
+directory` and no server starts.
+
+`nohup` detaches it from the terminal and the process reparents to `launchd`, so nothing
+in the session that started it can take it down. Verify with `ps -o pid,ppid,command -p
+<pid>` — a `ppid` of 1 means it's detached; anything else means it isn't, and it will die
+with that parent.
+
+Stop it with `pkill -f dev-with-diagnostics`. Ctrl-C won't reach it — that's the point.
+
+### If the server disappears
+
+`npm run dev` runs through `scripts/dev-with-diagnostics.sh`, which records how the
+server ended to `.logs/dev-server.log` (gitignored). Read that file first: Next.js logs
+requests, not its own death, so from the request log a deliberate shutdown and a hard
+kill look the same — both just stop. The diagnostics log distinguishes them, along with
+crashes, out-of-memory kills, orphaned processes, and the machine going to sleep. The
+table in `lib/devDiagnostics.ts` maps each signature to its cause.
+
+`npm run dev:bare` is the plain `next dev` with no wrapper, if you ever need to rule the
+wrapper out. In-process logging still applies there — it's installed via
+`instrumentation.ts`, not the script.
+
 Open [http://localhost:3000](http://localhost:3000) in your browser. Unauthenticated requests redirect to `/login`; from there, follow the link to `/register` to create an account — this provisions your personal collection database automatically. Store your username/password somewhere safe: passwords are hashed (not reversible) and there's no password-reset flow, so a lost password can't be recovered, even for a test account (you can change a known password from `/account` once logged in, but not recover a forgotten one).
 
 After registering (or logging in), you'll land on the collection list at `/pressings`.

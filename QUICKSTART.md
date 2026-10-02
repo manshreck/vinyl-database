@@ -85,6 +85,14 @@ write your `.env`, `npm install`, `npx prisma generate`). Then:
 npm run dev
 ```
 
+That runs in the foreground; Ctrl-C stops it. If you'd rather it keep running after you
+close the terminal, start it detached instead — `mkdir -p .logs && nohup
+./scripts/dev-with-diagnostics.sh > .logs/dev-stdout.log 2>&1 &`, and `pkill -f
+dev-with-diagnostics` to stop it (the `mkdir` matters on a first run — the redirect is
+set up before the script can create that directory). And if
+the server ever vanishes on you, don't guess: `.logs/dev-server.log` records how it
+ended. README's "Running the App" covers both.
+
 Open http://localhost:3000, register a throwaway account (this creates your own tenant
 database — you can watch it appear with `psql -l`), and click around: add a record, add
 a wishlist item, try the search. Ten minutes of using the app will teach you the domain
