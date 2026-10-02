@@ -101,7 +101,7 @@ export default async function WishlistPage({ searchParams }: { searchParams: Sea
                             alt=""
                             width={40}
                             height={40}
-                            className="rounded object-cover flex-shrink-0"
+                            className="rounded h-10 w-10 object-cover flex-shrink-0"
                             unoptimized
                           />
                         )}

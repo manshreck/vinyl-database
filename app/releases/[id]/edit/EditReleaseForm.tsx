@@ -121,7 +121,7 @@ export default function EditReleaseForm({ release, allGenres, returnTo }: Props)
                 alt=""
                 width={96}
                 height={96}
-                className="rounded-lg object-cover flex-shrink-0"
+                className="rounded-lg h-24 w-24 object-cover flex-shrink-0"
                 unoptimized
               />
             ) : (

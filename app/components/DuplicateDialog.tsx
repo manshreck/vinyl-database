@@ -102,7 +102,7 @@ export default function DuplicateDialog({
                 alt=""
                 width={48}
                 height={48}
-                className="rounded-lg object-cover flex-shrink-0"
+                className="rounded-lg h-12 w-12 object-cover flex-shrink-0"
                 unoptimized
               />
             )}

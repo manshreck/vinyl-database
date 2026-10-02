@@ -108,7 +108,7 @@ export default function EditPressingForm({
               alt=""
               width={64}
               height={64}
-              className="rounded-lg object-cover flex-shrink-0"
+              className="rounded-lg h-16 w-16 object-cover flex-shrink-0"
               unoptimized
             />
           ) : (

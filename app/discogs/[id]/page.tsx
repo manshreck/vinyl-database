@@ -53,7 +53,7 @@ export default async function DiscogsReleasePage({ params }: Props) {
                   alt=""
                   width={160}
                   height={160}
-                  className="rounded-lg object-cover flex-shrink-0"
+                  className="rounded-lg h-40 w-40 object-cover flex-shrink-0"
                   unoptimized
                 />
               ) : (

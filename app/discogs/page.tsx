@@ -85,7 +85,7 @@ export default async function DiscogsSearchPage({ searchParams }: { searchParams
                       alt=""
                       width={56}
                       height={56}
-                      className="rounded-md object-cover flex-shrink-0"
+                      className="rounded-md h-14 w-14 object-cover flex-shrink-0"
                       unoptimized
                     />
                   ) : (
